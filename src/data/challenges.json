@@ -1,0 +1,122 @@
+[
+  {
+    "id": "2026-w12",
+    "weekOf": "2026-03-16",
+    "title": "The Temperature Challenge",
+    "description": "One person silently picks a number between 1 and 100 representing a 'temperature' and must communicate it to their partner using only charades, dance moves, or body language — absolutely no words, mouthing, or props allowed. Their partner has to decode the movements and shout out the number, with the closest guess winning the round. The funnier and more dramatic the body language, the better the video!",
+    "category": "both",
+    "difficulty": "medium",
+    "emoji": "🌡️",
+    "trendSource": "TikTok (For You Page)",
+    "players": "2+",
+    "timeEstimate": "10-15 min"
+  },
+  {
+    "id": "2026-w11",
+    "weekOf": "2026-03-09",
+    "title": "The Passing the Phone Challenge",
+    "description": "One person starts recording and says 'I'm passing the phone to someone who [insert a funny, affectionate roast about a friend]' — then physically hands the phone to that friend, who must keep a straight face on camera before turning it around to roast the next person in line. The chain continues until everyone in the group has been both roasted and done the roasting, making for a hilarious reveal of your entire friend group's most embarrassing traits.",
+    "category": "both",
+    "difficulty": "easy",
+    "emoji": "📱",
+    "trendSource": "TikTok (#passthephonechallenge)",
+    "players": "3+",
+    "timeEstimate": "10-15 min"
+  },
+  {
+    "id": "2026-w10",
+    "weekOf": "2026-03-03",
+    "title": "The Blindfold Makeup Challenge",
+    "description": "One friend or partner is blindfolded and has to do the other person's full makeup look — foundation, eyeshadow, lipstick, the works. Film the whole chaotic process and the big reveal at the end!",
+    "category": "both",
+    "difficulty": "easy",
+    "emoji": "💄",
+    "trendSource": "TikTok",
+    "players": "2",
+    "timeEstimate": "15-20 min"
+  },
+  {
+    "id": "2026-w09",
+    "weekOf": "2026-02-24",
+    "title": "The Accent Challenge",
+    "description": "Take turns trying to speak in different accents (British, Australian, Southern, etc.) while reading random sentences. Your friend/partner rates each attempt. Whoever gets the most thumbs-ups wins!",
+    "category": "both",
+    "difficulty": "easy",
+    "emoji": "🗣️",
+    "trendSource": "TikTok",
+    "players": "2+",
+    "timeEstimate": "10-15 min"
+  },
+  {
+    "id": "2026-w08",
+    "weekOf": "2026-02-17",
+    "title": "The Whisper Challenge",
+    "description": "One person wears noise-cancelling headphones blasting music. The other person whispers a phrase. The headphone-wearer has to guess what was said by lip-reading. Hilarity guaranteed!",
+    "category": "both",
+    "difficulty": "easy",
+    "emoji": "🎧",
+    "trendSource": "YouTube / TikTok",
+    "players": "2",
+    "timeEstimate": "15 min"
+  },
+  {
+    "id": "2026-w07",
+    "weekOf": "2026-02-10",
+    "title": "The Ketchup Theory Challenge",
+    "description": "Couples only! Ask your partner a series of deep questions about your relationship — like 'What's my biggest fear?' or 'What do I order at our favorite restaurant?' See how well they really know you.",
+    "category": "couple",
+    "difficulty": "easy",
+    "emoji": "🍅",
+    "trendSource": "TikTok",
+    "players": "2",
+    "timeEstimate": "10 min"
+  },
+  {
+    "id": "2026-w06",
+    "weekOf": "2026-02-03",
+    "title": "The Body Part Drawing Challenge",
+    "description": "Each person draws a body part on separate pieces of paper without seeing what the other drew — one draws the head, one draws the body, etc. Combine them at the end for a hilarious Frankenstein portrait!",
+    "category": "both",
+    "difficulty": "easy",
+    "emoji": "🎨",
+    "trendSource": "Instagram Reels",
+    "players": "2+",
+    "timeEstimate": "10 min"
+  },
+  {
+    "id": "2026-w05",
+    "weekOf": "2026-01-27",
+    "title": "The Chapstick Challenge",
+    "description": "Couples challenge! One partner applies a flavored chapstick and the other has to guess the flavor by kissing them. Sweet AND funny — the wrong guesses are the best part.",
+    "category": "couple",
+    "difficulty": "easy",
+    "emoji": "💋",
+    "trendSource": "TikTok",
+    "players": "2",
+    "timeEstimate": "10 min"
+  },
+  {
+    "id": "2026-w04",
+    "weekOf": "2026-01-20",
+    "title": "The Not My Arms Challenge",
+    "description": "One person stands behind the other, putting their arms through as if they're the front person's arms. The 'arms' person has to feed the front person, do their makeup, or complete a task. Pure chaos!",
+    "category": "both",
+    "difficulty": "medium",
+    "emoji": "🤲",
+    "trendSource": "YouTube / TikTok",
+    "players": "2",
+    "timeEstimate": "15 min"
+  },
+  {
+    "id": "2026-w03",
+    "weekOf": "2026-01-13",
+    "title": "The Finish The Lyrics Challenge",
+    "description": "Play a random song and pause it at a key moment — the other person has to finish the lyrics. Keep score! Great for music-loving friend groups and couples who think they have perfect taste.",
+    "category": "both",
+    "difficulty": "medium",
+    "emoji": "🎵",
+    "trendSource": "TikTok / Spotify",
+    "players": "2+",
+    "timeEstimate": "15-20 min"
+  }
+]
