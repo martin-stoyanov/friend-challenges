@@ -38,8 +38,15 @@ function formatWeekOf(dateStr: string) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+// Only allow http(s) links to avoid javascript:/data: URLs sneaking in via
+// AI-generated data. React doesn't sanitize href schemes on its own.
+function getSafeUrl(url: string | undefined): string | undefined {
+  return url && /^https?:\/\//i.test(url) ? url : undefined;
+}
+
 export default function ChallengeCard({ challenge, featured = false }: Props) {
   const categoryClasses = getCategoryClasses(challenge.category);
+  const safeUrl = getSafeUrl(challenge.exampleUrl);
 
   return (
     <motion.div
@@ -74,9 +81,9 @@ export default function ChallengeCard({ challenge, featured = false }: Props) {
               <CardDescription>
                 Week of {formatWeekOf(challenge.weekOf)}
               </CardDescription>
-              {challenge.exampleUrl && (
+              {safeUrl && (
                 <a
-                  href={challenge.exampleUrl}
+                  href={safeUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={cn(

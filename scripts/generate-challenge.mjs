@@ -271,6 +271,13 @@ IMPORTANT: Your entire response must be ONLY a raw JSON object. No introduction,
     }
   }
 
+  // Reject non-http(s) URLs so nothing like a javascript:/data: URL lands in
+  // challenges.json and later gets rendered as an href on the site.
+  if (!/^https?:\/\//i.test(result.exampleUrl)) {
+    console.error(`❌ exampleUrl is not an http(s) URL: ${result.exampleUrl}`);
+    return null;
+  }
+
   // Check for near-duplicates (fuzzy title match)
   const normalizedNew = result.title.toLowerCase().replace(/[^a-z]/g, '');
   const isDuplicate = existingTitles.some(t => {
