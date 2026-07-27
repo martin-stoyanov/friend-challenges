@@ -1,0 +1,74 @@
+name: Weekly Challenge Generator
+
+on:
+  schedule:
+    # Every Monday at 9:00 UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+    inputs:
+      backfill:
+        description: 'Generate challenges for all missing weeks since the last one'
+        required: false
+        type: boolean
+        default: false
+      dry-run:
+        description: 'Preview the challenge without writing to file'
+        required: false
+        type: boolean
+        default: false
+      category:
+        description: 'Force a category (leave empty for auto)'
+        required: false
+        type: choice
+        options:
+          - auto
+          - friend
+          - couple
+          - both
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Generate challenge
+        run: |
+          ARGS=""
+          if [ "${{ github.event.inputs.backfill }}" = "true" ]; then
+            ARGS="$ARGS --backfill"
+          fi
+          if [ "${{ github.event.inputs.dry-run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          CATEGORY="${{ github.event.inputs.category }}"
+          if [ -n "$CATEGORY" ] && [ "$CATEGORY" != "auto" ]; then
+            ARGS="$ARGS --category $CATEGORY"
+          fi
+          echo "Running: node scripts/generate-challenge.mjs $ARGS"
+          node scripts/generate-challenge.mjs $ARGS
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Commit & push
+        if: ${{ github.event.inputs.dry-run != 'true' }}
+        run: |
+          git config user.name "Challenge Bot"
+          git config user.email "bot@friend-challenges.app"
+          git add src/data/challenges.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "🔥 New weekly challenge [$(date -u +%Y-%m-%d)]"
+            git push
+          fi

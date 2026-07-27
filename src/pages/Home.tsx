@@ -60,15 +60,8 @@ export default function Home() {
             ⚡ RECENT DROPS
           </motion.h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {recent.map((c, i) => (
-              <motion.div
-                key={c.id}
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.15 }}
-              >
-                <ChallengeCard challenge={c} />
-              </motion.div>
+            {recent.map((c) => (
+              <ChallengeCard key={c.id} challenge={c} />
             ))}
           </div>
         </section>

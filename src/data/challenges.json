@@ -1,5 +1,252 @@
 [
   {
+    "id": "2026-w31",
+    "weekOf": "2026-07-27",
+    "title": "The Guess My Outfit Challenge",
+    "description": "One partner or friend puts together a complete outfit for the other person using only items already in their closet — without showing them a single piece beforehand. The other person is blindfolded or waits in another room, then has to wear the full look on camera and react. The hilarious reveals, unexpected combos, and dramatic reactions make for incredibly watchable content.",
+    "category": "both",
+    "difficulty": "medium",
+    "emoji": "👗",
+    "trendSource": "TikTok and Instagram Reels",
+    "players": "2",
+    "timeEstimate": "20-30 min",
+    "exampleUrl": "https://www.tiktok.com/tag/guessmyoutfitchallenge"
+  },
+  {
+    "id": "2026-w30",
+    "weekOf": "2026-07-20",
+    "title": "The Swinging Couple Challenge",
+    "description": "One partner holds the other's leg while the second person dives or swings their body through the first partner's arm like a human pendulum — the goal is to thread through cleanly without falling or collapsing into chaos. It looks deceptively simple but almost always ends in hilarious slow-motion fails, surprise tumbles, and uncontrollable laughter.",
+    "category": "couple",
+    "difficulty": "medium",
+    "emoji": "🌀",
+    "trendSource": "TikTok",
+    "players": "2",
+    "timeEstimate": "10-15 min",
+    "exampleUrl": "https://www.tiktok.com/tag/coupleswingingchallenge"
+  },
+  {
+    "id": "2026-w29",
+    "weekOf": "2026-07-13",
+    "title": "The Couples Gift Exchange Challenge",
+    "description": "Each partner secretly buys or wraps a small surprise gift for the other using only items found around the house — no shopping allowed. You film the unwrapping live and react genuinely on camera, with the twist that you have to guess what inspired your partner to pick that specific item for you. The funnier and more random the gift, the better the content!",
+    "category": "couple",
+    "difficulty": "medium",
+    "emoji": "🎁",
+    "trendSource": "TikTok",
+    "players": "2",
+    "timeEstimate": "20-30 min",
+    "exampleUrl": "https://www.tiktok.com/tag/couplesgiftexchangechallenge"
+  },
+  {
+    "id": "2026-w28",
+    "weekOf": "2026-07-06",
+    "title": "The Voice Reaction Challenge",
+    "description": "One person says a set phrase (like 'are you serious?') and their partner or friend has to repeat it back in four completely different emotional tones — flirty, disgusted, shocked, and deadpan — all back-to-back as fast as possible. The goal is to nail each delivery without cracking up, while the other person films the whole sequence and drops in their live reaction to each version. It's equal parts acting exercise and comedy gold.",
+    "category": "both",
+    "difficulty": "easy",
+    "emoji": "🎭",
+    "trendSource": "TikTok",
+    "players": "2",
+    "timeEstimate": "10-15 min",
+    "exampleUrl": "https://www.tiktok.com/tag/voicereactionchallenge"
+  },
+  {
+    "id": "2026-w27",
+    "weekOf": "2026-06-29",
+    "title": "The Tickle Endurance Challenge",
+    "description": "One person sits completely still while their partner or friend tickles them for 30 seconds — they must keep a straight face and cannot move their arms or make a sound to 'win.' Swap roles after each round and film the reactions for maximum hilarity. The person who stays stone-faced the longest wins bragging rights.",
+    "category": "both",
+    "difficulty": "easy",
+    "emoji": "😂",
+    "trendSource": "TikTok",
+    "players": "2",
+    "timeEstimate": "10-15 min",
+    "exampleUrl": "https://www.tiktok.com/tag/coupleticklechallenge"
+  },
+  {
+    "id": "2026-w26",
+    "weekOf": "2026-06-22",
+    "title": "The Titanic Challenge",
+    "description": "One partner stands behind the other and holds them in the iconic Titanic 'I'm flying' pose — arms outstretched — while the person in front has to dramatically lean forward and hold the pose as long as possible without laughing or falling. The catch: the person in the back has to narrate the scene in their most dramatic movie-voice while the other tries to keep a straight face. First one to crack up loses!",
+    "category": "couple",
+    "difficulty": "medium",
+    "emoji": "🚢",
+    "trendSource": "TikTok",
+    "players": "2",
+    "timeEstimate": "10-15 min",
+    "exampleUrl": "https://www.tiktok.com/tag/titanicchallenge"
+  },
+  {
+    "id": "2026-w25",
+    "weekOf": "2026-06-15",
+    "title": "The Couple Flour Challenge",
+    "description": "One partner asks the other a series of questions about their relationship — every wrong answer earns them a handful of flour straight to the face! Take turns quizzing each other to see who really knows the relationship best, and film the messy, flour-dusted reactions for maximum laughs.",
+    "category": "couple",
+    "difficulty": "medium",
+    "emoji": "🌾",
+    "trendSource": "TikTok",
+    "players": "2",
+    "timeEstimate": "20-30 min",
+    "exampleUrl": "https://www.tiktok.com/tag/couplesflourchallenge"
+  },
+  {
+    "id": "2026-w24",
+    "weekOf": "2026-06-08",
+    "title": "The Squeeze the Ball Challenge",
+    "description": "A group of friends sits in a circle on the floor and passes a squeeze ball around using only their knees or feet — no hands allowed. If someone drops it or uses their hands, they're out! The last person still in the circle wins, and the hilariously awkward attempts to keep the ball going make it pure comedy gold on camera.",
+    "category": "friend",
+    "difficulty": "easy",
+    "emoji": "⚽",
+    "trendSource": "TikTok",
+    "players": "3+",
+    "timeEstimate": "10-15 min",
+    "exampleUrl": "https://www.tiktok.com/tag/squeezeballchallenge"
+  },
+  {
+    "id": "2026-w23",
+    "weekOf": "2026-06-01",
+    "title": "The Imposter Challenge",
+    "description": "Gather a group of friends, pick a fun theme, and dress so everyone blends in together. Use the Imposter Who? app to secretly assign one person as the 'imposter' — they get a different word/role than everyone else. Film the whole round with text overlays to tease the audience, then build up to a dramatic reveal of who the imposter was.",
+    "category": "both",
+    "difficulty": "medium",
+    "emoji": "🕵️",
+    "trendSource": "TikTok",
+    "players": "3+",
+    "timeEstimate": "20-30 min",
+    "exampleUrl": "https://www.tiktok.com/tag/impostorchallenge"
+  },
+  {
+    "id": "2026-w22",
+    "weekOf": "2026-05-25",
+    "title": "The Couples Favorites Challenge",
+    "description": "Each partner secretly writes down their answers to a set of 'favorites' questions — like favorite food, favorite color, favorite show, and biggest pet peeve — then you reveal your answers at the same time to see how well you actually know each other. The more mismatches, the more hilarious the reactions, and couples who've been together for years are shocked by how much they get wrong.",
+    "category": "couple",
+    "difficulty": "easy",
+    "emoji": "🎯",
+    "trendSource": "TikTok (also spreading to Instagram Reels)",
+    "players": "2",
+    "timeEstimate": "10-15 min",
+    "exampleUrl": "https://www.tiktok.com/tag/favoriteschallenge"
+  },
+  {
+    "id": "2026-w21",
+    "weekOf": "2026-05-18",
+    "title": "The Word Chain Challenge",
+    "description": "Friends sit together and take turns rapidly firing words that must connect to the previous word — for example, 'ocean' → 'blue' → 'sky' → 'bird' — without repeating a word or pausing for more than 3 seconds. Anyone who hesitates, repeats a word, or breaks the chain is eliminated, and the last person standing wins. The catch: the group picks a wild theme each round (e.g. only food words, only celebrity names) to make it hilariously harder.",
+    "category": "friend",
+    "difficulty": "easy",
+    "emoji": "🔗",
+    "trendSource": "TikTok (trending under #wordchain and #wordchallenge)",
+    "players": "3+",
+    "timeEstimate": "10-15 min",
+    "exampleUrl": "https://www.tiktok.com/tag/wordchainchallenge"
+  },
+  {
+    "id": "2026-w20",
+    "weekOf": "2026-05-11",
+    "title": "The Couple Lift Challenge",
+    "description": "One partner attempts to lift the other partner (or both attempt to lift each other) onto a couch, bed, or other surface from a standing position — with no help allowed. The twist is that the person being lifted has to go completely 'dead weight,' making it hilariously difficult. Whoever gets successfully lifted (or whoever lasts the longest while resisting) wins.",
+    "category": "couple",
+    "difficulty": "medium",
+    "emoji": "🏋️",
+    "trendSource": "TikTok",
+    "players": "2",
+    "timeEstimate": "10-15 min",
+    "exampleUrl": "https://www.tiktok.com/tag/coupleliftchallenge"
+  },
+  {
+    "id": "2026-w19",
+    "weekOf": "2026-05-04",
+    "title": "The Most Likely To Challenge",
+    "description": "Friends sit together and take turns reading out a 'Most Likely To...' prompt — like 'Most likely to text the wrong person' or 'Most likely to fall asleep at a party' — and on the count of three, everyone simultaneously points at whoever in the group they think fits best. The person with the most fingers pointed at them has to react and either accept the title or defend themselves on camera, making for hilariously relatable and shareable content.",
+    "category": "friend",
+    "difficulty": "easy",
+    "emoji": "👆",
+    "trendSource": "TikTok (hashtag #mostlikelytochallenge)",
+    "players": "3+",
+    "timeEstimate": "10-15 min",
+    "exampleUrl": "https://www.tiktok.com/tag/mostlikelytochallenge"
+  },
+  {
+    "id": "2026-w18",
+    "weekOf": "2026-04-27",
+    "title": "The Sock Challenge",
+    "description": "Couples sit back-to-back on the floor and each tries to pull the other's socks off using only their feet — no hands allowed! The first person to successfully steal both of their partner's socks wins. The hilarious tangled-leg scramble and trash talk make for incredibly watchable, laugh-out-loud content.",
+    "category": "couple",
+    "difficulty": "medium",
+    "emoji": "🧦",
+    "trendSource": "TikTok",
+    "players": "2",
+    "timeEstimate": "10-15 min",
+    "exampleUrl": "https://www.tiktok.com/tag/sockchallenge"
+  },
+  {
+    "id": "2026-w17",
+    "weekOf": "2026-04-20",
+    "title": "The Grocery Store Challenge",
+    "description": "Each partner secretly shops for the other person's 'perfect' meal using only a $20 budget — no communication allowed while in the store. You meet back up to reveal and react to each other's picks on camera, then taste everything together and vote on who nailed it best.",
+    "category": "couple",
+    "difficulty": "medium",
+    "emoji": "🛒",
+    "trendSource": "TikTok",
+    "players": "2",
+    "timeEstimate": "30-45 min",
+    "exampleUrl": "https://www.tiktok.com/tag/grocerystorechallenge"
+  },
+  {
+    "id": "2026-w16",
+    "weekOf": "2026-04-13",
+    "title": "The Yoga Pose Challenge",
+    "description": "One person (or both) attempts a deceptively difficult yoga or balance pose — like a single-leg squat, a deep hamstring stretch, or a partner balance — and films the inevitably hilarious fail. You can go head-to-head to see who holds it longer, or take turns attempting increasingly harder poses while the other person coaches (or laughs). The comedy comes from the overconfident setup versus the chaotic collapse.",
+    "category": "both",
+    "difficulty": "medium",
+    "emoji": "🧘",
+    "trendSource": "TikTok",
+    "players": "2",
+    "timeEstimate": "10-15 min",
+    "exampleUrl": "https://www.tiktok.com/tag/yogaposechallenge"
+  },
+  {
+    "id": "2026-w15",
+    "weekOf": "2026-04-06",
+    "title": "The Alphabet Challenge",
+    "description": "Sit face-to-face with your partner or friend and take turns saying one word each — but every word must begin with the next letter of the alphabet, A through Z. The catch: your words must connect into a flowing (if absurd) conversation, so saying something wildly off-topic or blanking on a letter means you get roasted in the comments. The funnier and more chaotic your 'conversation' gets, the better the video.",
+    "category": "both",
+    "difficulty": "easy",
+    "emoji": "🔤",
+    "trendSource": "TikTok",
+    "players": "2",
+    "timeEstimate": "10-15 min",
+    "exampleUrl": "https://www.tiktok.com/tag/alphabetchallenge"
+  },
+  {
+    "id": "2026-w14",
+    "weekOf": "2026-03-30",
+    "title": "The Passing the Phone Challenge",
+    "description": "A group of friends (or a couple) takes turns filming short clips passing the phone to one another, each person saying 'I'm passing the phone to someone who ___' and filling in the blank with a hilariously specific or roast-worthy trait about the next person. The reveal of each descriptor — and the next person's reaction — is what makes every video gold. Film it in one continuous chain and post the whole thing uncut for maximum chaos.",
+    "category": "both",
+    "difficulty": "easy",
+    "emoji": "📱",
+    "trendSource": "TikTok",
+    "players": "3+",
+    "timeEstimate": "10-15 min",
+    "exampleUrl": "https://www.tiktok.com/tag/passingthephonechallenge"
+  },
+  {
+    "id": "2026-w13",
+    "weekOf": "2026-03-23",
+    "title": "The Color Hunt Challenge",
+    "description": "Each person (or team) is secretly assigned a different color, then you both head outside and have 30–60 minutes to photograph everything you spot in your color — storefronts, flowers, food, outfits, street signs, anything counts. At the end, you each reveal a 3x3 photo grid collage of your finds, and followers vote on whose grid looks the most aesthetic. The surprise of how many things you notice once you're locked onto one color is what makes this endlessly entertaining to watch.",
+    "category": "both",
+    "difficulty": "easy",
+    "emoji": "🎨",
+    "trendSource": "TikTok (also spreading on Instagram Reels and X)",
+    "players": "2+",
+    "timeEstimate": "45-60 min",
+    "exampleUrl": "https://www.tiktok.com/tag/colorhuntchallenge"
+  },
+  {
     "id": "2026-w12",
     "weekOf": "2026-03-16",
     "title": "The Temperature Challenge",
@@ -9,7 +256,21 @@
     "emoji": "🌡️",
     "trendSource": "TikTok (For You Page)",
     "players": "2+",
-    "timeEstimate": "10-15 min"
+    "timeEstimate": "10-15 min",
+    "exampleUrl": "https://www.tiktok.com/tag/temperaturechallenge"
+  },
+  {
+    "id": "2026-w11",
+    "weekOf": "2026-03-09",
+    "title": "The Lying Challenge",
+    "description": "One partner sits across from the other and tells a mix of truths and lies about themselves, random facts, or shared memories — the other has to guess in real time whether it's true or false, reading their partner's face and body language. The catch: you can only ask ONE yes/no question before locking in your answer, making bluffing and dramatic reactions the whole show. Whoever racks up the most correct guesses wins bragging rights.",
+    "category": "couple",
+    "difficulty": "easy",
+    "emoji": "🤥",
+    "trendSource": "TikTok",
+    "players": "2",
+    "timeEstimate": "10-15 min",
+    "exampleUrl": "https://www.tiktok.com/tag/lyingchallenge"
   },
   {
     "id": "2026-w10",
@@ -17,11 +278,12 @@
     "title": "The Blindfold Makeup Challenge",
     "description": "One friend or partner is blindfolded and has to do the other person's full makeup look — foundation, eyeshadow, lipstick, the works. Film the whole chaotic process and the big reveal at the end!",
     "category": "both",
-    "difficulty": "easy",
+    "difficulty": "medium",
     "emoji": "💄",
     "trendSource": "TikTok",
     "players": "2",
-    "timeEstimate": "15-20 min"
+    "timeEstimate": "20-30 min",
+    "exampleUrl": "https://www.tiktok.com/tag/blindfoldmakeupchallenge"
   },
   {
     "id": "2026-w09",
@@ -33,7 +295,8 @@
     "emoji": "🗣️",
     "trendSource": "TikTok",
     "players": "2+",
-    "timeEstimate": "10-15 min"
+    "timeEstimate": "15-20 min",
+    "exampleUrl": "https://www.tiktok.com/tag/accentchallenge"
   },
   {
     "id": "2026-w08",
@@ -45,19 +308,21 @@
     "emoji": "🎧",
     "trendSource": "YouTube / TikTok",
     "players": "2",
-    "timeEstimate": "15 min"
+    "timeEstimate": "15 min",
+    "exampleUrl": "https://www.tiktok.com/tag/whisperchallenge"
   },
   {
     "id": "2026-w07",
     "weekOf": "2026-02-10",
-    "title": "The Ketchup Theory Challenge",
-    "description": "Couples only! Ask your partner a series of deep questions about your relationship — like 'What's my biggest fear?' or 'What do I order at our favorite restaurant?' See how well they really know you.",
+    "title": "The Blindfold Taste Test Challenge",
+    "description": "Blindfold your partner and feed them mystery foods — weird combos, spicy surprises, childhood snacks. They have to guess what they're eating. Bonus points for dramatic reactions and wildly wrong guesses!",
     "category": "couple",
     "difficulty": "easy",
-    "emoji": "🍅",
-    "trendSource": "TikTok",
+    "emoji": "🫣",
+    "trendSource": "TikTok / YouTube Shorts",
     "players": "2",
-    "timeEstimate": "10 min"
+    "timeEstimate": "15-20 min",
+    "exampleUrl": "https://www.tiktok.com/tag/blindfoldtastetestchallenge"
   },
   {
     "id": "2026-w06",
@@ -69,7 +334,8 @@
     "emoji": "🎨",
     "trendSource": "Instagram Reels",
     "players": "2+",
-    "timeEstimate": "10 min"
+    "timeEstimate": "10-15 min",
+    "exampleUrl": "https://www.tiktok.com/tag/bodypartdrawingchallenge"
   },
   {
     "id": "2026-w05",
@@ -81,7 +347,8 @@
     "emoji": "💋",
     "trendSource": "TikTok",
     "players": "2",
-    "timeEstimate": "10 min"
+    "timeEstimate": "10-15 min",
+    "exampleUrl": "https://www.tiktok.com/tag/chapstickchallengecouple"
   },
   {
     "id": "2026-w04",
@@ -93,7 +360,8 @@
     "emoji": "🤲",
     "trendSource": "YouTube / TikTok",
     "players": "2",
-    "timeEstimate": "15 min"
+    "timeEstimate": "15 min",
+    "exampleUrl": "https://www.tiktok.com/tag/notmyarmschallenge"
   },
   {
     "id": "2026-w03",
@@ -105,6 +373,7 @@
     "emoji": "🎵",
     "trendSource": "TikTok / Spotify",
     "players": "2+",
-    "timeEstimate": "15-20 min"
+    "timeEstimate": "15-20 min",
+    "exampleUrl": "https://www.tiktok.com/tag/finishthelyricschallenge"
   }
 ]

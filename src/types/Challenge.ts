@@ -9,4 +9,5 @@ export interface Challenge {
   trendSource: string;
   players: string;
   timeEstimate: string;
+  exampleUrl: string;
 }

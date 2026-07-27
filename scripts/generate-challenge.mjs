@@ -32,19 +32,28 @@ const forcedCategory = categoryIdx !== -1 ? args[categoryIdx + 1] : null;
 const weekIdx = args.indexOf('--week');
 const forcedWeek = weekIdx !== -1 ? args[weekIdx + 1] : null;
 
+function formatDateLocal(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 function getNextMonday() {
   const now = new Date();
   const day = now.getDay();
   const daysUntilMonday = day === 0 ? 1 : day === 1 ? 0 : 8 - day;
   const nextMonday = new Date(now);
   nextMonday.setDate(now.getDate() + daysUntilMonday);
-  return nextMonday.toISOString().split('T')[0];
+  return formatDateLocal(nextMonday);
 }
 
 function addDays(dateStr, days) {
   const date = new Date(dateStr + 'T00:00:00');
   date.setDate(date.getDate() + days);
-  return date.toISOString().split('T')[0];
+  return formatDateLocal(date);
 }
 
 function getMissingWeeks(existing) {
@@ -85,33 +94,53 @@ async function callClaude(prompt, systemPrompt) {
     process.exit(1);
   }
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2048,
-      system: systemPrompt,
-      tools: [
-        {
-          type: 'web_search_20250305',
-          name: 'web_search',
-          max_uses: 1,
-        },
-      ],
-      messages: [
-        { role: 'user', content: prompt },
-      ],
-    }),
+  const body = JSON.stringify({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 2048,
+    system: systemPrompt,
+    tools: [
+      {
+        type: 'web_search_20250305',
+        name: 'web_search',
+        max_uses: 1,
+      },
+    ],
+    messages: [
+      { role: 'user', content: prompt },
+    ],
   });
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Claude API error (${response.status}): ${error}`);
+  // Retry on rate limits (429) and transient server errors (5xx) with backoff.
+  // The org's per-minute token bucket refills over ~60s, so we wait it out
+  // rather than failing — this keeps unattended runs (e.g. the GitHub cron) reliable.
+  const maxRateLimitRetries = 5;
+  let response;
+  for (let attempt = 0; ; attempt++) {
+    response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body,
+    });
+
+    if (response.ok) break;
+
+    const retryable = response.status === 429 || response.status >= 500;
+    if (!retryable || attempt >= maxRateLimitRetries) {
+      const error = await response.text();
+      throw new Error(`Claude API error (${response.status}): ${error}`);
+    }
+
+    // Honor the server's retry-after (seconds) when present, else exponential backoff.
+    const retryAfter = Number(response.headers.get('retry-after'));
+    const waitMs = Number.isFinite(retryAfter) && retryAfter > 0
+      ? retryAfter * 1000
+      : Math.min(60_000, 2_000 * 2 ** attempt);
+    console.warn(`⏳ ${response.status} from API — waiting ${Math.round(waitMs / 1000)}s before retry (${attempt + 1}/${maxRateLimitRetries})...`);
+    await sleep(waitMs);
   }
 
   const data = await response.json();
@@ -147,6 +176,17 @@ You prioritize challenges that are:
 - Great for filming and sharing on social media
 - Genuinely entertaining to watch
 
+Difficulty guidelines:
+- "easy": minimal setup, no special skills, anyone can do it immediately (e.g. accent challenge, taste test)
+- "medium": some setup/props required OR requires coordination/skill (e.g. blindfold makeup, choreography)
+- "hard": significant prep, physical skill, or multiple rounds needed (e.g. elaborate cooking challenge, obstacle courses)
+
+Time estimate guidelines — be realistic, include setup and cleanup:
+- Simple verbal/guessing games: 10-15 min
+- Challenges needing props or setup: 15-20 min
+- Messy or multi-step challenges: 20-30 min
+- Complex challenges with prep: 30+ min
+
 You MUST return valid JSON matching the exact schema requested. Be creative and accurate.`;
 }
 
@@ -161,8 +201,21 @@ async function generateOneChallenge(weekOf, existing) {
     return null;
   }
 
-  const categoryHint = forcedCategory 
-    ? `The challenge MUST be specifically for: ${forcedCategory === 'friend' ? 'friends' : forcedCategory === 'couple' ? 'couples' : 'both friends and couples'}.`
+  let effectiveCategory = forcedCategory;
+  if (!effectiveCategory) {
+    // Smart category selection: maintain a healthy mix (target ~40% couple, ~15% friend, ~45% both)
+    const counts = { friend: 0, couple: 0, both: 0 };
+    for (const c of existing) counts[c.category]++;
+    const total = existing.length || 1;
+    const coupleRatio = counts.couple / total;
+    const friendRatio = counts.friend / total;
+    if (coupleRatio < 0.3) effectiveCategory = 'couple';
+    else if (friendRatio < 0.1) effectiveCategory = 'friend';
+    // otherwise leave null for free choice
+  }
+
+  const categoryHint = effectiveCategory 
+    ? `The challenge MUST be specifically for: ${effectiveCategory === 'friend' ? 'friends (group of friends, NOT couples)' : effectiveCategory === 'couple' ? 'couples (romantic partners)' : 'both friends and couples'}.`
     : 'The challenge can be for friends, couples, or both — pick whatever is trending hardest right now.';
 
   const today = new Date().toISOString().split('T')[0];
@@ -185,7 +238,8 @@ IMPORTANT: Your entire response must be ONLY a raw JSON object. No introduction,
   "emoji": "a single relevant emoji",
   "trendSource": "where this trend originated or is most popular (e.g. TikTok, Instagram Reels)",
   "players": "number of players needed (e.g. '2', '2+', '3+')",
-  "timeEstimate": "estimated time (e.g. '10 min', '15-20 min')",
+  "timeEstimate": "estimated time including setup (e.g. '10-15 min', '20-30 min') — be realistic, factor in prep, explanation, and cleanup",
+  "exampleUrl": "a TikTok hashtag URL for this challenge. Format: https://www.tiktok.com/tag/challengenamehere (all lowercase, no spaces, no special characters). For example: https://www.tiktok.com/tag/whisperchallenge. Do NOT use tiktok.com/search URLs.",
   "reasoning": "1-2 sentences explaining why you chose this challenge and why it's trending"
 }`;
 
@@ -208,7 +262,7 @@ IMPORTANT: Your entire response must be ONLY a raw JSON object. No introduction,
   }
 
   // Validate the result
-  const requiredFields = ['title', 'description', 'category', 'difficulty', 'emoji', 'trendSource', 'players', 'timeEstimate'];
+  const requiredFields = ['title', 'description', 'category', 'difficulty', 'emoji', 'trendSource', 'players', 'timeEstimate', 'exampleUrl'];
   for (const field of requiredFields) {
     if (!result[field]) {
       console.error(`❌ AI response missing required field: ${field}`);
@@ -242,6 +296,7 @@ IMPORTANT: Your entire response must be ONLY a raw JSON object. No introduction,
     trendSource: result.trendSource,
     players: result.players,
     timeEstimate: result.timeEstimate,
+    exampleUrl: result.exampleUrl,
   };
 
   console.log(`✅ ${result.emoji} ${result.title}`);
@@ -249,6 +304,9 @@ IMPORTANT: Your entire response must be ONLY a raw JSON object. No introduction,
   console.log(`   🏷️  Category: ${result.category} | Difficulty: ${result.difficulty}`);
   console.log(`   👥 Players: ${result.players} | ⏱️  Time: ${result.timeEstimate}`);
   console.log(`   📱 Source: ${result.trendSource}`);
+  if (result.exampleUrl) {
+    console.log(`   🎬 Example: ${result.exampleUrl}`);
+  }
   if (result.reasoning) {
     console.log(`   💡 Why: ${result.reasoning}`);
   }
@@ -280,12 +338,17 @@ async function main() {
   const generated = [];
   let currentExisting = [...existing];
 
-  for (const weekOf of weeks) {
-    const challenge = await generateOneChallenge(weekOf, currentExisting);
+  for (let i = 0; i < weeks.length; i++) {
+    const challenge = await generateOneChallenge(weeks[i], currentExisting);
     if (challenge) {
       generated.push(challenge);
       // Add to running list so next iteration avoids duplicating this one
       currentExisting.unshift(challenge);
+    }
+    // Space out backfill requests to stay under the per-minute token limit.
+    // callClaude already retries on 429, but pausing up front avoids burning retries.
+    if (backfill && i < weeks.length - 1) {
+      await sleep(20_000);
     }
   }
 

@@ -28,3 +28,7 @@ dist-ssr
 
 keys.md
 research/
+
+# Claude Code — local/runtime files (skills & .github are tracked)
+.claude/settings.local.json
+.claude/scheduled_tasks.lock

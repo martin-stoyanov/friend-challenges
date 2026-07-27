@@ -66,13 +66,28 @@ export default function ChallengeCard({ challenge, featured = false }: Props) {
           <span className={cn(featured ? 'text-5xl wobble' : 'text-4xl')}>
             {challenge.emoji}
           </span>
-          <div>
+          <div className="flex-1 min-w-0">
             <CardTitle className={cn('font-display leading-tight', featured ? 'text-3xl' : 'text-2xl')}>
               {challenge.title}
             </CardTitle>
-            <CardDescription className="mt-1">
-              Week of {formatWeekOf(challenge.weekOf)}
-            </CardDescription>
+            <div className="flex items-center gap-3 mt-1">
+              <CardDescription>
+                Week of {formatWeekOf(challenge.weekOf)}
+              </CardDescription>
+              {challenge.exampleUrl && (
+                <a
+                  href={challenge.exampleUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={cn(
+                    'inline-flex items-center gap-1 font-body text-sm transition-colors',
+                    'text-sky-blue/80 hover:text-sky-blue'
+                  )}
+                >
+                  ▶ Watch
+                </a>
+              )}
+            </div>
           </div>
         </CardHeader>
 
@@ -94,12 +109,8 @@ export default function ChallengeCard({ challenge, featured = false }: Props) {
             <Badge variant="outline" className="bg-neon-green/20 text-neon-green border-neon-green/30">
               ⏱️ {challenge.timeEstimate}
             </Badge>
-            {featured && (
-              <Badge variant="outline" className="bg-hot-pink/20 text-hot-pink border-hot-pink/30">
-                📱 via {challenge.trendSource}
-              </Badge>
-            )}
           </div>
+
         </CardContent>
       </Card>
     </motion.div>

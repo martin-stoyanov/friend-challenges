@@ -22,7 +22,9 @@ export default function Archive() {
 
   const sorted = sortByWeekDesc(typedChallenges);
 
-  const filtered = filter === 'all' ? sorted : sorted.filter((c) => c.category === filter);
+  const filtered = filter === 'all'
+    ? sorted
+    : sorted.filter((c) => c.category === filter || c.category === 'both');
 
   return (
     <div className="relative z-10">
@@ -63,15 +65,8 @@ export default function Archive() {
       {/* Challenge Grid */}
       <section className="max-w-5xl mx-auto px-6 pb-16">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filtered.map((c, i) => (
-            <motion.div
-              key={c.id}
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: Math.min(i * 0.1, 0.5) }}
-            >
-              <ChallengeCard challenge={c} />
-            </motion.div>
+          {filtered.map((c) => (
+            <ChallengeCard key={c.id} challenge={c} />
           ))}
         </div>
 
