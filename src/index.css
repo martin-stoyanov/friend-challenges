@@ -115,7 +115,7 @@ body {
   font-size: 1.5rem;
   pointer-events: none;
   z-index: 50;
-  animation: fall linear forwards;
+  animation: fall linear both;
 }
 
 :root {
