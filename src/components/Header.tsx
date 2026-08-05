@@ -2,12 +2,15 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/auth-context';
+import AuthMenu from '@/components/AuthMenu';
 
 export default function Header() {
   const location = useLocation();
+  const { loading, configured } = useAuth();
 
   return (
-    <header className="relative z-10 py-6 px-6">
+    <header className="relative z-30 py-6 px-6">
       <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
         <Link to="/" className="no-underline">
           <motion.h1
@@ -52,6 +55,8 @@ export default function Header() {
               </Button>
             </motion.div>
           </Link>
+
+          {configured && !loading && <AuthMenu />}
         </nav>
       </div>
     </header>

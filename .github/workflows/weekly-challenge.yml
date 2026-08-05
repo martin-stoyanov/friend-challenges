@@ -44,21 +44,23 @@ jobs:
 
       - name: Generate challenge
         run: |
-          ARGS=""
-          if [ "${{ github.event.inputs.backfill }}" = "true" ]; then
-            ARGS="$ARGS --backfill"
+          ARGS=()
+          if [ "$BACKFILL" = "true" ]; then
+            ARGS+=(--backfill)
           fi
-          if [ "${{ github.event.inputs.dry-run }}" = "true" ]; then
-            ARGS="$ARGS --dry-run"
+          if [ "$DRY_RUN" = "true" ]; then
+            ARGS+=(--dry-run)
           fi
-          CATEGORY="${{ github.event.inputs.category }}"
           if [ -n "$CATEGORY" ] && [ "$CATEGORY" != "auto" ]; then
-            ARGS="$ARGS --category $CATEGORY"
+            ARGS+=(--category "$CATEGORY")
           fi
-          echo "Running: node scripts/generate-challenge.mjs $ARGS"
-          node scripts/generate-challenge.mjs $ARGS
+          echo "Running: node scripts/generate-challenge.mjs ${ARGS[*]}"
+          node scripts/generate-challenge.mjs "${ARGS[@]}"
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BACKFILL: ${{ github.event.inputs.backfill }}
+          DRY_RUN: ${{ github.event.inputs.dry-run }}
+          CATEGORY: ${{ github.event.inputs.category }}
 
       - name: Commit & push
         if: ${{ github.event.inputs.dry-run != 'true' }}

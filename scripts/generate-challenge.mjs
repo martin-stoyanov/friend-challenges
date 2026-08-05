@@ -41,6 +41,26 @@ function formatDateLocal(date) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// TikTok /tag/ pages require the exact hashtag to be registered with videos, so a
+// model-invented slug dead-ends on "Couldn't find this hashtag". A /search?q= URL
+// matches videos by content and never hits that empty state, so we normalize every
+// exampleUrl to a search URL. Real search URLs pass through untouched; anything else
+// (including /tag/<slug>) becomes a search for the challenge title, which has proper
+// word boundaries a concatenated hashtag slug like "squeezeballchallenge" lacks.
+function toTikTokSearchUrl(url, title) {
+  const titleQuery = title.replace(/^The\s+/i, '').trim();
+  const build = (q) => `https://www.tiktok.com/search?q=${encodeURIComponent(q.trim())}`;
+  try {
+    const u = new URL(url);
+    if (/(^|\.)tiktok\.com$/i.test(u.hostname) && u.pathname.startsWith('/search') && u.searchParams.get('q')) {
+      return url; // already a usable search URL
+    }
+  } catch {
+    // malformed URL — fall through to title-based query
+  }
+  return build(titleQuery);
+}
+
 function getNextMonday() {
   const now = new Date();
   const day = now.getDay();
@@ -239,7 +259,7 @@ IMPORTANT: Your entire response must be ONLY a raw JSON object. No introduction,
   "trendSource": "where this trend originated or is most popular (e.g. TikTok, Instagram Reels)",
   "players": "number of players needed (e.g. '2', '2+', '3+')",
   "timeEstimate": "estimated time including setup (e.g. '10-15 min', '20-30 min') — be realistic, factor in prep, explanation, and cleanup",
-  "exampleUrl": "a TikTok hashtag URL for this challenge. Format: https://www.tiktok.com/tag/challengenamehere (all lowercase, no spaces, no special characters). For example: https://www.tiktok.com/tag/whisperchallenge. Do NOT use tiktok.com/search URLs.",
+  "exampleUrl": "a TikTok SEARCH URL for this challenge so viewers land on real videos. Format: https://www.tiktok.com/search?q=<query> where <query> is the words people actually use to find this challenge (URL-encode spaces as %20). Base the query on a hashtag or phrase you ACTUALLY saw in your web_search results — do NOT invent one. For example: https://www.tiktok.com/search?q=whisper%20challenge. Do NOT use tiktok.com/tag/ URLs — fabricated hashtags dead-end on an empty 'Couldn't find this hashtag' page.",
   "reasoning": "1-2 sentences explaining why you chose this challenge and why it's trending"
 }`;
 
@@ -270,6 +290,16 @@ IMPORTANT: Your entire response must be ONLY a raw JSON object. No introduction,
       return null;
     }
   }
+
+  // Reject non-http(s) URLs so nothing like a javascript:/data: URL lands in
+  // challenges.json and later gets rendered as an href on the site.
+  if (!/^https?:\/\//i.test(result.exampleUrl)) {
+    console.error(`❌ exampleUrl is not an http(s) URL: ${result.exampleUrl}`);
+    return null;
+  }
+
+  // Normalize to a TikTok search URL so the link never dead-ends on a fabricated tag.
+  result.exampleUrl = toTikTokSearchUrl(result.exampleUrl, result.title);
 
   // Check for near-duplicates (fuzzy title match)
   const normalizedNew = result.title.toLowerCase().replace(/[^a-z]/g, '');
