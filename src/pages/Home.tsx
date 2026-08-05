@@ -5,6 +5,8 @@ import ChallengeCard from '@/components/ChallengeCard';
 import EmojiRain from '@/components/EmojiRain';
 import { Card, CardContent } from '@/components/ui/card';
 import { sortByWeekDesc } from '@/lib/utils';
+import { useAuth } from '@/contexts/auth-context';
+import { useProgress } from '@/contexts/progress-context';
 
 const typedChallenges = challenges as Challenge[];
 
@@ -20,9 +22,27 @@ export default function Home() {
   const current = getCurrentChallenge();
   const recent = getRecentChallenges();
 
+  const { user } = useAuth();
+  const { doneIds } = useProgress();
+  const doneCount = doneIds.size;
+  const totalCount = typedChallenges.length;
+
   return (
     <div className="relative z-10">
       <EmojiRain />
+
+      {/* Personal progress */}
+      {user && doneCount > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center pt-6 px-6"
+        >
+          <span className="inline-block rounded-full bg-neon-green/15 border border-neon-green/40 text-neon-green font-body text-sm px-4 py-1.5">
+            🎉 You've done {doneCount} of {totalCount} challenges
+          </span>
+        </motion.div>
+      )}
 
       {/* Hero */}
       <section className="text-center py-12 px-6">
