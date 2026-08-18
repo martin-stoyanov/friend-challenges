@@ -62,6 +62,14 @@ jobs:
           DRY_RUN: ${{ github.event.inputs.dry-run }}
           CATEGORY: ${{ github.event.inputs.category }}
 
+      # The generator already retries drafts that break writing-style.md and keeps
+      # the last one if it still fails, so this reports rather than blocks: a
+      # flagged run is better than a week with no challenge.
+      - name: Check copy style
+        if: ${{ github.event.inputs.dry-run != 'true' }}
+        continue-on-error: true
+        run: npm run lint:copy
+
       - name: Commit & push
         if: ${{ github.event.inputs.dry-run != 'true' }}
         run: |

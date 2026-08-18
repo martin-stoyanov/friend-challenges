@@ -5,6 +5,10 @@
  * 
  * Uses Anthropic's Claude API to research and generate a new weekly viral challenge.
  * Reads the existing challenges.json to avoid duplicates, then appends the new one.
+ *
+ * Card copy is governed by writing-style.md at the repo root: the whole guide is
+ * pasted into the system prompt, and every generated description is checked
+ * against it (scripts/copy-style.mjs) before it is written to challenges.json.
  * 
  * Usage:
  *   ANTHROPIC_API_KEY=sk-ant-... node scripts/generate-challenge.mjs
@@ -19,6 +23,12 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import {
+  checkDescription,
+  formatViolations,
+  loadStyleGuide,
+  STYLE_GUIDE_RELATIVE_PATH,
+} from './copy-style.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CHALLENGES_PATH = path.join(__dirname, '..', 'src', 'data', 'challenges.json');
@@ -31,6 +41,12 @@ const categoryIdx = args.indexOf('--category');
 const forcedCategory = categoryIdx !== -1 ? args[categoryIdx + 1] : null;
 const weekIdx = args.indexOf('--week');
 const forcedWeek = weekIdx !== -1 ? args[weekIdx + 1] : null;
+// Titles that were generated but rejected as low quality. They are no longer in
+// challenges.json, so the avoid-list can't see them and the model regenerates them.
+const rejectedTitles = (process.env.AVOID_TITLES || '')
+  .split(',')
+  .map(t => t.trim())
+  .filter(Boolean);
 
 function formatDateLocal(date) {
   const y = date.getFullYear();
@@ -207,7 +223,35 @@ Time estimate guidelines — be realistic, include setup and cleanup:
 - Messy or multi-step challenges: 20-30 min
 - Complex challenges with prep: 30+ min
 
-You MUST return valid JSON matching the exact schema requested. Be creative and accurate.`;
+You MUST return valid JSON matching the exact schema requested. Be creative and accurate.
+
+${getStyleGuideSection()}`;
+}
+
+// The description is the only prose on a challenge card, so it is written to
+// writing-style.md. Pasting the whole guide in beats summarizing it: edits to the
+// guide take effect on the next run with no change here.
+function getStyleGuideSection() {
+  const guide = loadStyleGuide();
+  if (guide) {
+    return `The "description" field is card copy and MUST follow this style guide. Read all of it before writing.
+
+<style-guide file="${STYLE_GUIDE_RELATIVE_PATH}">
+${guide}
+</style-guide>`;
+  }
+
+  // The guide file is missing, so enforce the checklist inline instead.
+  console.warn(`⚠️  ${STYLE_GUIDE_RELATIVE_PATH} not found — falling back to the inline checklist.`);
+  return `The "description" field is card copy. Write it like a friend describing a game over text:
+- Describe the mechanics and let them imply the fun. Never tell the reader an outcome is funny.
+- Still sound like a person who wants you to play it. A flat manual fails as hard as an ad.
+- Every instruction has to parse. Introduce a thing before you refer to it, and don't cut a clause the sentence needs.
+- No em dashes. No "hilarious", "comedy gold", "epic", "unforgettable", "pure chaos", "for maximum laughs".
+- No "the goal is to..." — state the instruction directly.
+- No "equal parts X and Y" summarizing sentence, and no three-item adjective list closing the card.
+- Vary rhythm: at least one sentence under 10 words and one over 15, and no run of clipped commands.
+- Never invent a prop, number, or detail that is not actually part of the challenge.`;
 }
 
 async function generateOneChallenge(weekOf, existing) {
@@ -243,7 +287,10 @@ async function generateOneChallenge(weekOf, existing) {
 
 IMPORTANT — These challenges have ALREADY been used, DO NOT suggest any of these or anything very similar:
 ${existingTitles.map((t, i) => `- "${t}" — ${existingDescriptions[i]}...`).join('\n')}
-
+${rejectedTitles.length ? `
+These ideas were REJECTED as low quality. Do not suggest them or close variations:
+${rejectedTitles.map(t => `- "${t}"`).join('\n')}
+` : ''}
 ${categoryHint}
 
 Search first, then give me a challenge that is genuinely trending in ${today.substring(0, 7)} — not something from a prior year.
@@ -252,7 +299,7 @@ IMPORTANT: Your entire response must be ONLY a raw JSON object. No introduction,
 
 {
   "title": "The [Name] Challenge",
-  "description": "A 2-3 sentence fun description of how to do the challenge. Be specific about the rules and what makes it funny/entertaining.",
+  "description": "4-5 sentences on how to actually play, written to the style guide in the system prompt. Sound like a friend who wants you to try this, not a manual: contractions, an aside, an opinion, a warning about the floor. Describe the mechanics in order so a reader who has never seen the challenge could run it, and introduce anything before you refer to it. Do not tell the reader it is funny. No em dashes, no 'the goal is to...', no three-item adjective closer, and no run of clipped four-word sentences. At least one sentence under 10 words and one over 15. Do not invent props, counts, or rules that are not part of the real challenge.",
   "category": "friend" | "couple" | "both",
   "difficulty": "easy" | "medium" | "hard",
   "emoji": "a single relevant emoji",
@@ -266,11 +313,11 @@ IMPORTANT: Your entire response must be ONLY a raw JSON object. No introduction,
   console.log(`🤖 Generating challenge for week of ${weekOf} (${weekId})...\n`);
 
   let result;
+  let styleFeedback = '';
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      result = await callClaude(prompt, getSystemPrompt());
-      break;
+      result = await callClaude(prompt + styleFeedback, getSystemPrompt());
     } catch (err) {
       if (attempt < maxAttempts && err.message.startsWith('Failed to parse JSON')) {
         console.warn(`⚠️  JSON parse failed (attempt ${attempt}/${maxAttempts}), retrying...`);
@@ -279,6 +326,31 @@ IMPORTANT: Your entire response must be ONLY a raw JSON object. No introduction,
       console.error('❌ Failed to generate challenge:', err.message);
       return null;
     }
+
+    // The style guide is already in the system prompt; this catches what slips
+    // through anyway and hands the specific violations back for a rewrite.
+    const violations = typeof result?.description === 'string'
+      ? checkDescription(result.description)
+      : [];
+    if (violations.length === 0) break;
+
+    console.warn(`✍️  Description breaks ${STYLE_GUIDE_RELATIVE_PATH} (attempt ${attempt}/${maxAttempts}):`);
+    console.warn(formatViolations(violations));
+
+    if (attempt === maxAttempts) {
+      console.warn('   Keeping this draft — rewrite the description by hand before shipping.');
+      break;
+    }
+
+    styleFeedback = `
+
+Your previous description was:
+"${result.description}"
+
+It broke these rules from the style guide:
+${formatViolations(violations)}
+
+Keep the same challenge and rewrite the description so it passes. Respond with ONLY the raw JSON object again, starting with { and ending with }.`;
   }
 
   // Validate the result
