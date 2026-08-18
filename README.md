@@ -35,10 +35,24 @@ node scripts/generate-challenge.mjs --category friend
 
 Requires an `ANTHROPIC_API_KEY` environment variable.
 
+## Challenge Copy
+
+All card copy follows [`writing-style.md`](writing-style.md). Read it before writing or
+rewriting any description by hand. The generator pastes the whole guide into its system
+prompt and rejects drafts that break it, so edits to the guide take effect on the next run.
+
+Check every description in `src/data/challenges.json` against the guide:
+
+```bash
+npm run lint:copy
+```
+
 ## Project Structure
 
 - `src/pages/` — Home and Archive pages
 - `src/components/` — Reusable UI components
 - `src/data/challenges.json` — All challenge data
 - `scripts/generate-challenge.mjs` — AI challenge generation script
+- `scripts/copy-style.mjs` — writing-style.md checker (used by the generator and `npm run lint:copy`)
+- `writing-style.md` — voice and copy rules for every challenge description
 - `.github/workflows/weekly-challenge.yml` — Weekly automation

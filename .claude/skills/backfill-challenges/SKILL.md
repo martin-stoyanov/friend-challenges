@@ -10,6 +10,7 @@ Generate challenges for all missing weeks between the last entry in `src/data/ch
 ## Prerequisites
 - `ANTHROPIC_API_KEY` must be available (stored in `keys.md` locally or as env var).
 - **WARNING**: Do NOT `source keys.md` — it contains a command that runs the script. Use `grep` to extract the key.
+- Read `writing-style.md` at the repo root before judging or editing any generated description. It is the source of truth for card copy, and the script pastes it into its own system prompt.
 
 ## Steps
 
@@ -28,7 +29,8 @@ export PATH="$HOME/.nvm/versions/node/v22.19.0/bin:$PATH" && export ANTHROPIC_AP
 4. Verify the updated `src/data/challenges.json` — confirm:
    - New entries were added and sorted newest-first.
    - All `weekOf` dates are **Mondays, exactly 7 days apart** (timezone bug was fixed — see `WEEKOF_DATE_BUG_ANALYSIS.md`).
-   - Each entry has an `exampleUrl` field pointing to a **TikTok hashtag URL** (format: `https://www.tiktok.com/tag/challengename` — NOT `tiktok.com/search?q=` which shows blank results).
+   - Each entry has an `exampleUrl` field pointing to a **TikTok search URL** (format: `https://www.tiktok.com/search?q=<query>` — the script normalizes anything else, since fabricated `tiktok.com/tag/` slugs dead-end on an empty hashtag page).
+   - Every new description passes `npm run lint:copy` and reads clean against the checklist at the bottom of `writing-style.md`. Backfills generate several descriptions in a row, so watch for all of them landing in the same shape.
    - **Category balance**: target ~40% couple, ~15% friend, ~45% both. The script auto-selects underrepresented categories when no `--category` flag is passed. **NEVER re-tag existing challenges** to fix the balance — always generate new ones with the right category.
 
 5. Build the project to make sure nothing is broken:
@@ -42,7 +44,7 @@ git add src/data/challenges.json && git commit -m "🔥 Backfill challenges" && 
 ```
 
 ## Challenge Schema
-Each generated challenge includes: `id`, `weekOf`, `title`, `description`, `category` (friend|couple|both), `difficulty` (easy|medium|hard), `emoji`, `trendSource`, `players`, `timeEstimate`, `exampleUrl` (TikTok hashtag link — format: `https://www.tiktok.com/tag/challengename`).
+Each generated challenge includes: `id`, `weekOf`, `title`, `description` (written to `writing-style.md`), `category` (friend|couple|both), `difficulty` (easy|medium|hard), `emoji`, `trendSource`, `players`, `timeEstimate`, `exampleUrl` (TikTok search link — format: `https://www.tiktok.com/search?q=<query>`).
 
 ## Rate Limits
 The Anthropic API may rate-limit if generating many challenges at once. If you see 429 errors, wait 60 seconds and retry.
