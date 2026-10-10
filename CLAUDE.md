@@ -32,6 +32,16 @@ bottom of `writing-style.md` by eye.
 Never invent a prop, number, or rule that isn't actually part of the challenge just to make
 a description more concrete.
 
+## Weekly proposals over Telegram
+
+The weekly challenge is picked by Martin from ideas a bot sends him on Telegram
+(`AUTOMATION_PLAN.md`, `docs/plans/telegram-weekly-proposals.md`). A description
+he writes there is published exactly as he wrote it. Don't rewrite it to the
+style guide in `challenges.json` unless he asks. `npm run lint:copy` reports his
+own copy as a warning for that reason. `proposals/<weekId>.json` files are
+written by the bot. Don't renumber or retitle proposals for an open week: the
+Pick buttons in his chat point at those numbers.
+
 ## Before committing
 
 Run `npm run check`: `tsc -b`, ESLint, `lint:copy` and the `node:test` suite in `tests/`.

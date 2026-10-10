@@ -112,7 +112,7 @@ test('the more button starts propose-challenges.yml in "more" mode for that week
 
 test('when GitHub refuses, Martin hears what to do, and Telegram still gets 200', async () => {
   for (const [status, expected] of [
-    [401, /refused the bot's token .* Nothing changed\. Make a new one/],
+    [401, /refused the bot's token .* Nothing changed\. Make a new one, update GITHUB_DISPATCH_TOKEN on Netlify, and redeploy/],
     [403, /refused the bot's token/],
     [404, /couldn't start the workflow \(404\)\. Nothing changed/],
     [500, /GitHub answered 500\. Nothing changed; try again in a minute/],

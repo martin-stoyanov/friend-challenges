@@ -27,7 +27,7 @@ Any time        You tap "Pick #2", or reply to proposal #2 with your own text
                       node scripts/apply-choice.mjs
                       → upserts the week into src/data/challenges.json, commits, pushes
                       → Netlify builds master
-                      → Telegram: "Published #2", plus any style-lint warnings
+                      → Telegram: "#2 is set for the week of …", plus any style warnings
 
 Sun 12:00 UTC   apply-challenge.yml (schedule) → apply-choice.mjs --fallback
                   week already picked → nothing; else publish #1;
@@ -72,7 +72,7 @@ link: https://…                 players:, time:
   number. With a bare number, the week is the upcoming Monday's.
 - **D5 — Martin's text is used verbatim.** A description sent over Telegram is
   published exactly as written. `checkDescription` still runs, and any violations
-  come back in the confirmation message with "reply again to replace it". The bot
+  come back in the confirmation, which says a new reply replaces the text. The bot
   never rewrites his copy. A `link:` he sends is kept as given if it is http(s); only
   generated links go through `toTikTokSearchUrl`. `npm run lint:copy` reports a
   description he wrote (recorded as `pick.overrides.description` in the week's
@@ -86,7 +86,7 @@ link: https://…                 players:, time:
   existing ratings stay attached to the id. Earlier weeks are archived and refuse
   picks, because old Pick buttons stay in the chat forever.
 - **D7 — The fallback runs Sunday 12:00 UTC and proposals Thursday 12:00 UTC.** This
-  repo's Monday 09:00 cron has started between 14:53 and 18:05 UTC, so schedules
+  repo's Monday 09:00 cron has started between 09:44 and 18:05 UTC, so schedules
   leave a wide margin. The fallback publishes #1. With no proposals file it runs the
   existing single-challenge generator, so a week is never empty.
 - **D8 — GitHub is reached through `workflow_dispatch`,** authenticated by a
@@ -294,27 +294,30 @@ Pure refactor; `generate-challenge.mjs` behaves exactly as before.
 
 ### Step 10: Setup script and docs
 
-- `scripts/telegram-setup.mjs`: `chat-id` (reads `getUpdates` after you message the
-  bot), `webhook <site-url>` (calls `setWebhook` with the secret token, allowed
-  updates `message` and `callback_query`, and drops pending updates), `info` and
-  `test`.
+- `scripts/telegram-setup.mjs`: `secret` (prints a webhook secret), `chat-id`
+  (reads `getUpdates` after you message the bot), `webhook <site-url>` (calls
+  `setWebhook` with the secret token, allowed updates `message` and
+  `callback_query`, drops pending updates, and registers /help), `info`, `test`
+  and `unhook`.
 - `AUTOMATION_PLAN.md`: rewritten for the new flow (its Monday-cron description is
   now wrong).
-- `README.md`: a short "Weekly proposals" section pointing to the setup checklist
-  below.
+- `README.md`: a "Weekly Challenges" section pointing to `AUTOMATION_PLAN.md`,
+  `--propose` in the manual commands, and the new files in Project Structure.
 - `CLAUDE.md`: one paragraph. Descriptions sent over Telegram are published verbatim
   (D5); `proposals/` is bot-written history.
 - `.claude/skills/generate-challenge/SKILL.md`: mention `--propose`.
 
 ## Setup checklist (Martin)
 
-1. Add the missing GitHub secret `ANTHROPIC_API_KEY`. The current cron has failed
-   every week since Sep 7 without it.
+The same list, with commands and troubleshooting, is in `AUTOMATION_PLAN.md`.
+
+1. Add the missing GitHub secret `ANTHROPIC_API_KEY`. It was never set, so the
+   old cron failed on every run (ten runs, 3 Aug to 5 Oct 2026).
 2. In Telegram, message **@BotFather** → `/newbot` → copy the token. Send your new
    bot any message.
 3. Run `TELEGRAM_BOT_TOKEN=… node scripts/telegram-setup.mjs chat-id` to get your
    chat id.
-4. Pick a random webhook secret (`openssl rand -hex 32`).
+4. Make a webhook secret: `node scripts/telegram-setup.mjs secret`.
 5. Create a fine-grained GitHub token for this repo only, with **Actions: read
    and write** and nothing else.
 6. GitHub secrets: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
@@ -338,5 +341,5 @@ Pure refactor; `generate-challenge.mjs` behaves exactly as before.
 | 6 | done | 334d844 |
 | 7 | done | a6becac |
 | 8 | done | 75cffbd |
-| 9 | done | (this commit) |
-| 10 | pending | |
+| 9 | done | fbeb085 |
+| 10 | done | (this commit) |

@@ -7,6 +7,10 @@ description: Generate a single new weekly Friend Challenge with the AI script an
 
 Generate one new challenge for the next upcoming Monday and add it to `src/data/challenges.json`.
 
+Normally the weekly challenge is picked by Martin on Telegram from proposals the
+bot sends on Thursdays (see `AUTOMATION_PLAN.md`). Use this skill when he wants
+one generated directly instead, or to preview proposals (`--propose --dry-run`).
+
 ## Prerequisites
 - `ANTHROPIC_API_KEY` must be available (stored in `keys.md` locally or as env var).
 - **WARNING**: Do NOT `source keys.md` — it contains a command that runs the script. Use `grep` to extract the key.
@@ -52,3 +56,7 @@ The script has **smart category selection**: if no `--category` flag is passed, 
 ## Optional Flags
 - `--category friend|couple|both` — force a specific category
 - `--week YYYY-MM-DD` — override the target week date
+- `--propose [N] --dry-run` — preview N proposals (default 4) without saving or sending them. A live batch is refused outside GitHub Actions: it must be committed or its Pick buttons point at nothing, so send one from Actions → Propose Challenges.
+- `--more` — with `--propose`, another batch for the same week
+
+Generating the coming week here means that Thursday's run sends no proposals for it (it tells Martin why).

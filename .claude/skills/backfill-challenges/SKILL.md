@@ -7,6 +7,8 @@ description: Backfill all missing weekly Friend Challenges between the last entr
 
 Generate challenges for all missing weeks between the last entry in `src/data/challenges.json` and the upcoming Monday.
 
+The upcoming Monday is normally picked by Martin on Telegram (see `AUTOMATION_PLAN.md`). `--backfill` fills it too, and then Thursday's run sends no proposals for that week. To leave the upcoming week to his pick, generate the missing weeks one at a time with `--week YYYY-MM-DD`, stopping before the upcoming Monday.
+
 ## Prerequisites
 - `ANTHROPIC_API_KEY` must be available (stored in `keys.md` locally or as env var).
 - **WARNING**: Do NOT `source keys.md` — it contains a command that runs the script. Use `grep` to extract the key.

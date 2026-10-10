@@ -442,6 +442,13 @@ async function runPropose(existing) {
     process.exit(1);
   }
   const chatId = process.env.TELEGRAM_CHAT_ID;
+  // A live batch has to be committed, or its Pick buttons point at nothing
+  // (apply-challenge.yml reads proposals from master). Only the workflow commits.
+  if (!dryRun && process.env.GITHUB_ACTIONS !== 'true') {
+    console.error('❌ Live proposals are sent from GitHub Actions (Actions → Propose Challenges), so the batch gets committed.');
+    console.error('   Locally, add --dry-run to preview them.');
+    process.exit(1);
+  }
   if (!dryRun && (!process.env.TELEGRAM_BOT_TOKEN || !chatId)) {
     console.error('❌ TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are required to send proposals (or use --dry-run)');
     process.exit(1);
@@ -478,8 +485,16 @@ async function runPropose(existing) {
     console.log(`⏭️  ${weekId} already has proposals (${proposalsPath(weekId)}). Use --more for another batch.`);
     return;
   }
-  if (!more && existing.some(c => c.id === weekId)) {
+  const published = existing.find(c => c.id === weekId);
+  if (!more && published) {
     console.log(`⏭️  ${weekId} already has a challenge; nothing to propose.`);
+    // Likely generated or backfilled outside Telegram; say so, so a quiet
+    // Thursday doesn't look like a broken bot.
+    if (fromEvent && !dryRun) {
+      await sendMessage(chatId, formatNotice(
+        `ℹ️ The week of ${weekOf} already has a challenge ("${published.title}"), added outside Telegram, so there are no proposals this week.`
+      ));
+    }
     return;
   }
 

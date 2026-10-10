@@ -84,7 +84,7 @@ function dispatchFailureNotice(err) {
     return "⚠️ GitHub didn't answer in time. It may still go through; if no confirmation arrives in a few minutes, send it again.";
   }
   if (err.status === 401 || err.status === 403) {
-    return "⚠️ GitHub refused the bot's token (it may have expired). Nothing changed. Make a new one and update GITHUB_DISPATCH_TOKEN on Netlify.";
+    return "⚠️ GitHub refused the bot's token (it may have expired). Nothing changed. Make a new one, update GITHUB_DISPATCH_TOKEN on Netlify, and redeploy the site so the function picks it up.";
   }
   if (err.status === 404 || err.status === 422) {
     return `⚠️ GitHub couldn't start the workflow (${err.status}). Nothing changed. Check that the workflows are on the deploy branch and GITHUB_REPO is right.`;

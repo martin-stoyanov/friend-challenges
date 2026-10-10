@@ -44,6 +44,7 @@ function run(args, { eventName, inputs } = {}) {
     TELEGRAM_BOT_TOKEN: 'T',
     TELEGRAM_CHAT_ID: '42',
     STUB_LOG: path.join(dir, 'calls.log'),
+    GITHUB_ACTIONS: 'true',
   };
   delete env.GITHUB_EVENT_PATH;
   delete env.GITHUB_EVENT_NAME;
@@ -156,6 +157,29 @@ test('dry_run proposes without saving or sending', () => {
   assert.equal(status, 0);
   assert.equal(fs.existsSync(proposalsFile(upcoming.weekId)), false);
   assert.equal(calls.some((c) => c.method === 'sendMessage'), false);
+});
+
+test('a live batch is refused outside GitHub Actions; a dry run is fine', () => {
+  const local = (args) => {
+    const env = { ...process.env, ANTHROPIC_API_KEY: 'k', TELEGRAM_BOT_TOKEN: 'T', TELEGRAM_CHAT_ID: '42', STUB_LOG: path.join(dir, 'calls.log') };
+    delete env.GITHUB_ACTIONS;
+    fs.writeFileSync(env.STUB_LOG, '');
+    return spawnSync(process.execPath, ['--import', path.join(dir, 'stub.mjs'), path.join(dir, 'scripts', 'generate-challenge.mjs'), ...args], { env, encoding: 'utf-8' });
+  };
+  const live = local(['--propose', '4']);
+  assert.equal(live.status, 1);
+  assert.match(live.stderr, /sent from GitHub Actions/);
+  assert.equal(local(['--propose', '2', '--dry-run']).status, 0);
+});
+
+test('Thursday tells Martin when the week was already filled outside Telegram', () => {
+  fs.writeFileSync(path.join(dir, 'src', 'data', 'challenges.json'), JSON.stringify([{
+    id: upcoming.weekId, weekOf: upcoming.weekOf, title: 'The Backfilled Challenge', description: 'x', category: 'both',
+    difficulty: 'easy', emoji: '📦', trendSource: 'TikTok', players: '2', timeEstimate: '5 min', exampleUrl: 'https://example.com',
+  }]));
+  const { status, calls } = run(['--from-event'], { eventName: 'schedule' });
+  assert.equal(status, 0);
+  assert.deepEqual(calls.map((c) => c.method), ['sendMessage'], 'one notice, no Claude call');
 });
 
 test('--restore-batch puts a sent batch back after a reset, without calling anyone', () => {
