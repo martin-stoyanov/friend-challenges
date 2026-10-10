@@ -31,3 +31,9 @@ bottom of `writing-style.md` by eye.
 
 Never invent a prop, number, or rule that isn't actually part of the challenge just to make
 a description more concrete.
+
+## Before committing
+
+Run `npm run check`: `tsc -b`, ESLint, `lint:copy` and the `node:test` suite in `tests/`.
+It needs Node 22.18+ (`~/.nvm/versions/node/v22.19.0`). There is no Prettier or Jest in
+this repo; don't add them to get a check passing.

@@ -15,6 +15,13 @@ npm install
 npm run dev
 ```
 
+Before committing, run the full gate (typecheck, ESLint, the copy lint and the tests in
+`tests/`). It needs Node 22.18 or newer:
+
+```bash
+npm run check
+```
+
 ## Generating Challenges
 
 New challenges are generated automatically every Monday via GitHub Actions. You can also run the script manually:

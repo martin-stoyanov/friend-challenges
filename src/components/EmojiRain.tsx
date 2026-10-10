@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 const EMOJIS = ['🔥', '😂', '💪', '🎉', '✨', '🤪', '💥', '🎯', '👯', '❤️'];
 
@@ -10,19 +10,20 @@ interface Particle {
   delay: number;
 }
 
-export default function EmojiRain() {
-  const [particles, setParticles] = useState<Particle[]>([]);
+function makeParticles(): Particle[] {
+  return Array.from({ length: 15 }, (_, i) => ({
+    id: i,
+    emoji: EMOJIS[Math.floor(Math.random() * EMOJIS.length)],
+    left: Math.random() * 100,
+    duration: 4 + Math.random() * 6,
+    delay: Math.random() * 5,
+  }));
+}
 
-  useEffect(() => {
-    const newParticles: Particle[] = Array.from({ length: 15 }, (_, i) => ({
-      id: i,
-      emoji: EMOJIS[Math.floor(Math.random() * EMOJIS.length)],
-      left: Math.random() * 100,
-      duration: 4 + Math.random() * 6,
-      delay: Math.random() * 5,
-    }));
-    setParticles(newParticles);
-  }, []);
+export default function EmojiRain() {
+  // Lazy initializer: the random layout is rolled once per mount, with no
+  // empty first render followed by a second one from an effect.
+  const [particles] = useState(makeParticles);
 
   return (
     <>
