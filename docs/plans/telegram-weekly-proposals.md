@@ -15,7 +15,8 @@ until this branch is merged to `master`, because GitHub only runs scheduled and
 Thu 12:00 UTC   GitHub Action: propose-challenges.yml
                   node scripts/generate-challenge.mjs --propose 4
                   → proposals/<weekId>.json committed with [skip netlify]
-                  → Telegram: a header + one message per proposal, each with a "Pick #n" button
+                  → Telegram: a header, one message per proposal, each with a "Pick #n" button,
+                    then a footer with the reply guide and a "🔄 4 more" button
 
 Any time        You tap "Pick #2", or reply to proposal #2 with your own text
                   → Telegram POSTs to /.netlify/functions/telegram-webhook
@@ -140,10 +141,12 @@ Pure refactor; `generate-challenge.mjs` behaves exactly as before.
 ### Step 4: Telegram client and message format (D10)
 
 - `scripts/lib/telegram.mjs`: `telegramApi(method, body)` using `fetch` and
-  `TELEGRAM_BOT_TOKEN`; `escapeHtml`; `formatProposal(p, weekId)`, which returns
-  `{ text, reply_markup }` with the tag line `#<n> · <weekId>` and a `Pick #<n>`
-  button; `formatHeader(weekId, weekOf, count)` with the reply grammar and a
-  `🔄 <count> more` button. Text stays under Telegram's 4096-character limit.
+  `TELEGRAM_BOT_TOKEN`; `sendMessage`; `escapeHtml`; `formatProposal(p, weekId)`,
+  which returns `{ text, reply_markup }` with the tag line `#<n> · <weekId>` and a
+  `Pick #<n>` button; `formatHeader(weekId, weekOf, count)`, a one-line intro; and
+  `formatFooter(weekId, count)`, sent last so it sits at the bottom of the chat, with
+  the reply guide, the Sunday deadline and the `🔄 <count> more` button. Text stays
+  under Telegram's 4096-character limit.
 - `scripts/telegram-notify.mjs`: CLI that sends one plain message; workflows use it
   for failures. Exits 0 when the Telegram env is missing, so a notify step never
   hides the real failure.
@@ -177,8 +180,8 @@ Pure refactor; `generate-challenge.mjs` behaves exactly as before.
     ranked best first.
   - Each is validated. Style violations get one rewrite round, batched in a single
     call. Duplicates of existing titles or of each other are dropped.
-  - Writes `proposals/<weekId>.json` and sends the header and one message per
-    proposal.
+  - Writes `proposals/<weekId>.json` and sends the header, one message per
+    proposal, then the footer (reply guide and "more" button).
   - `--more` appends a batch for the same week and avoids every earlier title.
     `--dry-run` prints without writing or sending.
   - Fewer than 1 valid proposal exits non-zero.
@@ -281,8 +284,8 @@ Pure refactor; `generate-challenge.mjs` behaves exactly as before.
 | --- | --- | --- |
 | 1 | done | fcf97fb |
 | 2 | done | 77ce53e |
-| 3 | done | (this commit) |
-| 4 | pending | |
+| 3 | done | f684999 |
+| 4 | done | (this commit) |
 | 5 | pending | |
 | 6 | pending | |
 | 7 | pending | |
