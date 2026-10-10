@@ -62,8 +62,8 @@ test('a dispatch pick is applied, recorded, flagged as applied, and its confirma
   writeProposalsFile(upcoming.weekId, upcoming.weekOf);
   const message = path.join(dir, 'confirm.json');
   const { status, output } = run(['--message-out', message], {
-    eventName: 'repository_dispatch',
-    event: { client_payload: { weekId: upcoming.weekId, n: 2, overrides: { title: 'The Mirror Challenge' }, source: 'reply' } },
+    eventName: 'workflow_dispatch',
+    event: { inputs: { week_id: upcoming.weekId, pick: '2', overrides: JSON.stringify({ title: 'The Mirror Challenge' }), source: 'reply' } },
   });
   assert.equal(status, 0);
   assert.match(output, /^applied=true$/m);
@@ -76,8 +76,8 @@ test('a dispatch pick is applied, recorded, flagged as applied, and its confirma
 test('a bad pick from Telegram is answered and exits 0 without applying', () => {
   writeProposalsFile(upcoming.weekId, upcoming.weekOf);
   const { status, output, stdout } = run([], {
-    eventName: 'repository_dispatch',
-    event: { client_payload: { weekId: upcoming.weekId, n: 7, overrides: {}, source: 'button' } },
+    eventName: 'workflow_dispatch',
+    event: { inputs: { week_id: upcoming.weekId, pick: '7', overrides: '{}', source: 'button' } },
   });
   assert.equal(status, 0);
   assert.equal(output, '', 'nothing for the workflow to commit');
@@ -85,10 +85,29 @@ test('a bad pick from Telegram is answered and exits 0 without applying', () => 
   assert.equal(readJson('src/data/challenges.json').length, 1);
 });
 
-test('a bad pick on the command line exits 1', () => {
+test('a bad pick on the command line, or from a hand-run, exits 1', () => {
   writeProposalsFile(upcoming.weekId, upcoming.weekOf);
   assert.equal(run(['--pick', '9', '--week-id', upcoming.weekId]).status, 1);
   assert.equal(run(['--pick', 'x']).status, 1);
+  const handRun = run([], { eventName: 'workflow_dispatch', event: { inputs: { week_id: '', pick: '9', description: '' } } });
+  assert.equal(handRun.status, 1);
+});
+
+test('a junk request from Telegram is still answered with exit 0', () => {
+  const { status, stdout } = run([], {
+    eventName: 'workflow_dispatch',
+    event: { inputs: { week_id: '2026-w99x', pick: '1', overrides: '{}', source: 'number' } },
+  });
+  assert.equal(status, 0);
+  assert.match(stdout, /not a week id/);
+});
+
+test('a hand-run with an empty week applies to the coming week', () => {
+  writeProposalsFile(upcoming.weekId, upcoming.weekOf);
+  const { status, output } = run([], { eventName: 'workflow_dispatch', event: { inputs: { week_id: '', pick: '1', description: 'Mine.' } } });
+  assert.equal(status, 0);
+  assert.match(output, /applied=true/);
+  assert.equal(readJson('src/data/challenges.json')[0].description, 'Mine.');
 });
 
 test('fallback: applies #1 with the fallback heading, then does nothing the second time', () => {

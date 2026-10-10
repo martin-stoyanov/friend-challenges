@@ -40,20 +40,20 @@ export function escapeHtml(text) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function callOnce(method, body, token, fetchImpl) {
+async function callOnce(method, body, token, fetchImpl, timeoutMs) {
   let response;
   try {
     response = await fetchImpl(`${API_BASE}/bot${token}/${method}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (err) {
     // fetch's own message is a bare "fetch failed"; the cause says why. Neither
     // includes the URL, so the token stays out of logs.
     const reason = err.name === 'TimeoutError'
-      ? `no response in ${REQUEST_TIMEOUT_MS / 1000}s`
+      ? `no response in ${timeoutMs / 1000}s`
       : err.cause?.code ?? err.cause?.message ?? err.message;
     return { error: new Error(`Telegram ${method} request failed: ${reason}`), retryable: true };
   }
@@ -72,18 +72,19 @@ async function callOnce(method, body, token, fetchImpl) {
  * Telegram's description, never the URL, which contains the token.
  *
  * Network errors, 429s and 5xx are retried `retries` times (default 2), waiting
- * as long as Telegram asks, up to 30s. The webhook passes retries: 0 because it
- * has to answer Telegram within seconds.
+ * as long as Telegram asks, up to 30s. The webhook passes retries: 0 and a
+ * short timeoutMs because a Netlify function has seconds to answer.
  */
 export async function telegramApi(method, body, {
   token = process.env.TELEGRAM_BOT_TOKEN,
   fetchImpl = fetch,
   sleepImpl = sleep,
   retries = 2,
+  timeoutMs = REQUEST_TIMEOUT_MS,
 } = {}) {
   if (!token) throw new Error('TELEGRAM_BOT_TOKEN is not set');
   for (let attempt = 0; ; attempt++) {
-    const outcome = await callOnce(method, body, token, fetchImpl);
+    const outcome = await callOnce(method, body, token, fetchImpl, timeoutMs);
     if (!outcome.error) return outcome.result;
     const waitMs = outcome.retryAfterMs || 1_000 * 2 ** attempt;
     if (!outcome.retryable || attempt >= retries || waitMs > 30_000) throw outcome.error;

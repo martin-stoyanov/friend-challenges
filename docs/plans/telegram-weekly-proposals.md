@@ -5,9 +5,9 @@ or replies to one with his own description and field changes, and that becomes t
 next Monday's challenge. If he says nothing by Sunday, proposal #1 is published and
 he is told so.
 
-Branch: `telegram-weekly-proposals` (off `origin/master`). Nothing runs on a schedule
-until this branch is merged to `master`, because GitHub only runs scheduled and
-`repository_dispatch` workflows from the default branch.
+Branch: `telegram-weekly-proposals` (off `origin/master`). Nothing runs until
+this branch is merged to `master`: GitHub runs scheduled workflows only from the
+default branch, and the webhook starts the workflows on `master`.
 
 ## How it fits together
 
@@ -21,7 +21,8 @@ Thu 12:00 UTC   GitHub Action: propose-challenges.yml
 Any time        You tap "Pick #2", or reply to proposal #2 with your own text
                   → Telegram POSTs to /.netlify/functions/telegram-webhook
                   → function checks the secret header and your chat id, parses the reply,
-                    answers "On it", and fires repository_dispatch "apply-choice"
+                    starts apply-challenge.yml through workflow_dispatch, then
+                    acknowledges (a toast for a tap, a 👍 on a text reply)
                   → GitHub Action: apply-challenge.yml
                       node scripts/apply-choice.mjs
                       → upserts the week into src/data/challenges.json, commits, pushes
@@ -88,10 +89,14 @@ link: https://…                 players:, time:
   repo's Monday 09:00 cron has started between 14:53 and 18:05 UTC, so schedules
   leave a wide margin. The fallback publishes #1. With no proposals file it runs the
   existing single-challenge generator, so a week is never empty.
-- **D8 — GitHub is reached through `repository_dispatch`,** authenticated by a
-  fine-grained token limited to this repo with Contents read/write. Workflows read
-  the payload from `$GITHUB_EVENT_PATH` in Node. A `${{ github.event.client_payload.* }}`
-  expression never appears in a `run:` line, because the payload holds free text.
+- **D8 — GitHub is reached through `workflow_dispatch`,** authenticated by a
+  fine-grained token limited to this repo with **Actions: read and write** only.
+  That token can start workflows but cannot change the repo, unlike the
+  Contents: write a `repository_dispatch` would need. Inputs are strings:
+  `week_id`, `pick`, `overrides` (JSON) and `source` for a pick; `mode=more` and
+  `week_id` for more ideas. Workflows read them from `$GITHUB_EVENT_PATH` in
+  Node. A `${{ github.event.inputs.* }}` expression never appears in a `run:`
+  line, because the inputs hold free text.
 - **D9 — The webhook trusts only Telegram and Martin.** It requires
   `X-Telegram-Bot-Api-Secret-Token` to equal `TELEGRAM_WEBHOOK_SECRET` (constant-time
   compare; 401 otherwise) and the chat id to equal `TELEGRAM_CHAT_ID`. An update
@@ -100,8 +105,8 @@ link: https://…                 players:, time:
   the same Telegram chat. The Monday cron failed silently for five weeks.
 - **D11 — The old Monday cron becomes manual-only.** `weekly-challenge.yml` keeps
   backfill, dry-run and category inputs for `workflow_dispatch`, and loses its
-  schedule. All three workflows share one `concurrency` group and
-  `git pull --rebase` before pushing.
+  schedule. Concurrent commits are handled per workflow (Step 9), not by one
+  shared concurrency group, which would drop waiting runs.
 
 ## Steps
 
@@ -203,10 +208,10 @@ Pure refactor; `generate-challenge.mjs` behaves exactly as before.
 ### Step 7: `apply-choice.mjs` and the fallback (D5, D6, D7)
 
 - `scripts/apply-choice.mjs`:
-  - Input comes from `$GITHUB_EVENT_PATH`: a `repository_dispatch` `client_payload`
-    from the webhook, or `workflow_dispatch` `inputs` (`week_id`, `pick`,
-    `description`). Or it comes from CLI flags (`--pick --week-id --description
-    --title …`). No payload value ever passes through a shell.
+  - Input comes from `$GITHUB_EVENT_PATH`: `workflow_dispatch` `inputs` from the
+    webhook or a hand-run (`week_id`, `pick`, `overrides`, `description`,
+    `source`). Or it comes from CLI flags (`--pick --week-id --description
+    --title …`). No input value ever passes through a shell.
   - Resolves the proposal and applies overrides verbatim. It upserts into
     `challenges.json`, marks the proposals file picked, and runs
     `checkDescription`.
@@ -231,42 +236,55 @@ Pure refactor; `generate-challenge.mjs` behaves exactly as before.
 
 ### Step 8: Netlify webhook (D4, D8, D9)
 
-- `netlify/functions/telegram-webhook.mjs`: Functions 2.0 default export, served at
-  `/.netlify/functions/telegram-webhook`. That path is not affected by the SPA
-  redirect.
-  - Logic lives in `createHandler({ env, fetch })` so tests can inject both.
-  - Checks the secret and the chat id, then calls `parseUpdate`.
-  - `pick` and `more` fire `repository_dispatch` (`apply-choice` or
-    `propose-more`) and acknowledge in Telegram. `help` and `invalid` reply with
-    the grammar.
-  - Callback taps are answered with `answerCallbackQuery`. The response is always
-    200 except for a bad secret.
-- `netlify.toml`: `[functions] node_bundler = "esbuild"`.
-- `tests/webhook.test.mjs`: bad secret → 401 and no dispatch; stranger → 200 and no
-  dispatch; tap → the right dispatch payload; reply with description → payload
-  carries it; GitHub error → you are told it failed.
+- `netlify/functions/telegram-webhook.mjs`: Functions 2.0 default export, served
+  at `/.netlify/functions/telegram-webhook`. That path is not affected by the SPA
+  redirect, and Netlify's bundler pulls in `scripts/lib`.
+  - Logic lives in `createHandler({ env, fetchImpl, now, timeoutMs })` for tests.
+  - Answers 405 for anything but POST, 500 when a setting is missing (named in
+    the log), and 401 for a wrong secret. Everything else is 200, including
+    dropped updates and downstream failures, so Telegram never retries.
+  - Updates from any other chat are dropped and logged by chat id.
+  - `pick` starts `apply-challenge.yml` and `more` starts `propose-challenges.yml`.
+    Only after that does it acknowledge, with a toast for a tap or a 👍 reaction
+    for a text reply. `help` sends the reply guide. `invalid` sends the reason
+    and points to /help.
+  - A failed hand-off gets a notice built from the status only: an expired token
+    is called out as such, and a timeout says the pick may still arrive.
+  - Telegram calls get no retries and a 4s timeout, and acknowledgements run in
+    parallel, keeping the function inside Netlify's 10s.
+- `tests/webhook.test.mjs`: bad secret → 401 and no dispatch; stranger → 200, no
+  dispatch, logged; tap → the right workflow and inputs; reply with description →
+  inputs carry it; each GitHub failure → the right notice; timeout wired; no
+  Telegram retries; invalid tap still answered.
 
 ### Step 9: Workflows (D7, D8, D10, D11)
 
 - `.github/workflows/propose-challenges.yml`:
-  - Triggers: cron `0 12 * * 4`, `repository_dispatch: [propose-more]`, and
-    `workflow_dispatch` (count, dry-run).
-  - Runs `--propose` or `--propose --more`, then commits `proposals/` with
-    `[skip netlify]`.
+  - Triggers: cron `0 12 * * 4`, and `workflow_dispatch` with `mode` (new or
+    more), `week_id`, `count` and `dry_run`. "More" from the webhook arrives this
+    way.
+  - Runs `--propose`, or `--propose --more` for the week named. A "more" for an
+    archived week or one with no proposals is answered, not run.
+  - Commits `proposals/` with `[skip netlify]`.
+  - Its own concurrency group, so two "more" taps never number over each
+    other. A third tap only replaces the one waiting.
 - `.github/workflows/apply-challenge.yml`:
-  - Triggers: `repository_dispatch: [apply-choice]`, cron `0 12 * * 0` for the
-    fallback, and `workflow_dispatch` with week/pick/description inputs for manual
-    use.
-  - Runs `apply-choice.mjs`; when it reports `generate=true`, runs the generator.
-  - Runs `lint:copy` as a report-only step, commits `challenges.json` and
-    `proposals/`, and pushes.
+  - Triggers: `workflow_dispatch` with `week_id`, `pick`, `overrides`,
+    `description` and `source`, from the webhook or by hand; and cron
+    `0 12 * * 0` for the fallback.
+  - Runs `apply-choice.mjs --message-out`, then the generator when the fallback
+    reports `generate=true`. Runs `lint:copy` as a report-only step.
+  - Commits `challenges.json` and `proposals/` and pushes. On a rejected push it
+    resets to the new `master` and re-runs the apply, which is deterministic, so
+    two quick picks both land. It uses no concurrency group, because GitHub
+    drops a waiting run when another queues behind it.
+  - Sends the confirmation only after the push succeeds.
 - `weekly-challenge.yml`: schedule removed; it stays manual for backfills.
 - All three:
-  - share `concurrency: { group: challenge-data, cancel-in-progress: false }`;
-  - run `git pull --rebase` before pushing;
+  - push with a retry that handles a concurrent commit;
   - run a final `if: failure()` step with `telegram-notify.mjs` and the run URL.
 - Secrets used: `ANTHROPIC_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
-- Validate the YAML parses and no `run:` line interpolates `client_payload`.
+- Validate the YAML parses and no `run:` line interpolates an event input.
 
 ### Step 10: Setup script and docs
 
@@ -291,8 +309,8 @@ Pure refactor; `generate-challenge.mjs` behaves exactly as before.
 3. Run `TELEGRAM_BOT_TOKEN=… node scripts/telegram-setup.mjs chat-id` to get your
    chat id.
 4. Pick a random webhook secret (`openssl rand -hex 32`).
-5. Create a fine-grained GitHub token for this repo only, with Contents read and
-   write.
+5. Create a fine-grained GitHub token for this repo only, with **Actions: read
+   and write** and nothing else.
 6. GitHub secrets: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
 7. Netlify env vars: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`,
    `TELEGRAM_WEBHOOK_SECRET`, `GITHUB_DISPATCH_TOKEN`, `GITHUB_REPO`
@@ -312,7 +330,7 @@ Pure refactor; `generate-challenge.mjs` behaves exactly as before.
 | 4 | done | d2c5637 |
 | 5 | done | 47b61f2 |
 | 6 | done | 334d844 |
-| 7 | done | (this commit) |
-| 8 | pending | |
+| 7 | done | a6becac |
+| 8 | done | (this commit) |
 | 9 | pending | |
 | 10 | pending | |

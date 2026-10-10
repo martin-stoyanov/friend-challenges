@@ -88,31 +88,42 @@ export function changedFields(overrides = {}) {
   return OVERRIDE_FIELDS.filter((field) => field in overrides).map((field) => FIELD_LABELS[field]);
 }
 
+/** Sources that mean the pick came from Martin's Telegram chat. */
+export const TELEGRAM_SOURCES = ['button', 'reply', 'number'];
+
 /**
- * The pick request from a GitHub event, or { error }.
- *  - repository_dispatch: client_payload { weekId, n, overrides, source }
- *    (sent by the Netlify webhook)
- *  - workflow_dispatch: inputs { week_id, pick, description } (run by hand)
+ * The pick request from a workflow_dispatch event's inputs, or { error }.
+ * The webhook and a hand-run of the workflow both arrive this way (plan D8):
+ *   week_id    "2026-w43"
+ *   pick       "2"
+ *   overrides  optional JSON object of field overrides (the webhook sends this)
+ *   description optional text, a shortcut for hand-runs from the Actions tab
+ *   source     optional; "manual" when absent
+ * Every value is a string, as workflow_dispatch inputs are.
  */
 export function parsePickEvent(eventName, event) {
-  let weekId;
-  let n;
-  let overrides;
-  let source;
-  if (eventName === 'repository_dispatch') {
-    ({ weekId, n, overrides = {}, source } = event?.client_payload ?? {});
-  } else if (eventName === 'workflow_dispatch') {
-    const inputs = event?.inputs ?? {};
-    weekId = inputs.week_id;
-    n = Number(inputs.pick);
-    overrides = inputs.description?.trim() ? { description: inputs.description.trim() } : {};
-    source = 'manual';
-  } else {
+  if (eventName !== 'workflow_dispatch') {
     return { error: `Don't know how to read a pick from a ${eventName} event.` };
+  }
+  const inputs = event?.inputs ?? {};
+  const weekId = inputs.week_id;
+  const n = /^\d+$/.test(String(inputs.pick ?? '')) ? Number(inputs.pick) : NaN;
+  const source = typeof inputs.source === 'string' && inputs.source.trim() ? inputs.source.trim() : 'manual';
+
+  let overrides = {};
+  if (typeof inputs.overrides === 'string' && inputs.overrides.trim()) {
+    try {
+      overrides = JSON.parse(inputs.overrides);
+    } catch {
+      return { error: 'The overrides are not valid JSON.' };
+    }
+  }
+  if (typeof inputs.description === 'string' && inputs.description.trim()) {
+    overrides = { ...overrides, description: inputs.description.trim() };
   }
 
   if (typeof weekId !== 'string' || !WEEK_ID.test(weekId)) return { error: `${quote(weekId)} is not a week id like 2026-w43.` };
-  if (!Number.isInteger(n) || n < 1) return { error: `${quote(n)} is not a proposal number.` };
+  if (!Number.isInteger(n) || n < 1) return { error: `${quote(inputs.pick)} is not a proposal number.` };
   if (!PICK_SOURCES.includes(source)) return { error: `${quote(source)} is not a pick source.` };
   const problems = validateOverrides(overrides);
   if (problems.length) return { error: `${problems.join('; ')}.` };

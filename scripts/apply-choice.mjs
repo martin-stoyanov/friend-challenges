@@ -7,8 +7,8 @@
  *
  * Usage:
  *   node scripts/apply-choice.mjs
- *       Reads the pick from $GITHUB_EVENT_PATH: a repository_dispatch from the
- *       Telegram webhook, or a workflow_dispatch run by hand.
+ *       Reads the pick from $GITHUB_EVENT_PATH: a workflow_dispatch started by
+ *       the Telegram webhook or by hand from the Actions tab.
  *   node scripts/apply-choice.mjs --pick 2 [--week-id 2026-w43] [--description "…"]
  *       [--title "…"] [--emoji "…"] [--category …] [--difficulty …]
  *       [--players "…"] [--time "…"] [--link "…"]
@@ -35,7 +35,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { checkDescription } from './copy-style.mjs';
-import { applyPick, changedFields, fallbackAction, parsePickEvent } from './lib/apply.mjs';
+import { applyPick, changedFields, fallbackAction, parsePickEvent, TELEGRAM_SOURCES } from './lib/apply.mjs';
 import { formatDateLocal, getNextMonday, getWeekId } from './lib/dates.mjs';
 import { readProposals, writeProposals } from './lib/proposals.mjs';
 import { formatConfirmation, formatNotice, sendMessage } from './lib/telegram.mjs';
@@ -97,33 +97,30 @@ function writeChallenges(challenges) {
   fs.writeFileSync(CHALLENGES_PATH, JSON.stringify(challenges, null, 2) + '\n');
 }
 
-/** The pick request, from flags or from the GitHub event. */
+/**
+ * The pick request, from flags or from the GitHub event. Either way it goes
+ * through the same parsing and validation as a workflow_dispatch's inputs.
+ */
 function readRequest() {
+  const upcoming = getWeekId(getNextMonday());
+  let inputs;
   if (args.includes('--pick')) {
     const overrides = {};
     for (const [name, field] of Object.entries(CLI_OVERRIDES)) {
       const value = flag(name);
       if (value !== undefined) overrides[field] = value;
     }
-    // Same validation as a dispatch payload.
-    const parsed = parsePickEvent('repository_dispatch', {
-      client_payload: {
-        weekId: flag('--week-id') ?? getWeekId(getNextMonday()),
-        n: Number(flag('--pick')),
-        overrides,
-        source: 'manual',
-      },
-    });
-    return { ...parsed, fromTelegram: false };
+    inputs = { week_id: flag('--week-id'), pick: flag('--pick'), overrides: JSON.stringify(overrides) };
+  } else {
+    const eventPath = process.env.GITHUB_EVENT_PATH;
+    if (!eventPath || process.env.GITHUB_EVENT_NAME !== 'workflow_dispatch') {
+      return { error: 'No pick given. Use --pick N, --fallback, or run from a workflow_dispatch.' };
+    }
+    inputs = JSON.parse(fs.readFileSync(eventPath, 'utf-8')).inputs ?? {};
   }
-
-  const eventPath = process.env.GITHUB_EVENT_PATH;
-  const eventName = process.env.GITHUB_EVENT_NAME;
-  if (!eventPath || !eventName) {
-    return { error: 'No pick given. Use --pick N, --fallback, or run from a GitHub event.', fromTelegram: false };
-  }
-  const event = JSON.parse(fs.readFileSync(eventPath, 'utf-8'));
-  return { ...parsePickEvent(eventName, event), fromTelegram: eventName === 'repository_dispatch' };
+  // A hand-run from the Actions tab may leave the week empty: the coming one.
+  const withWeek = { ...inputs, week_id: inputs.week_id || upcoming };
+  return parsePickEvent('workflow_dispatch', { inputs: withWeek });
 }
 
 /** Writes the applied pick and delivers its confirmation. */
@@ -146,11 +143,23 @@ async function save(result, { n, weekId, fallbackPick = false }) {
   }));
 }
 
+// When the request itself is invalid there is no parsed source; the raw input
+// still says whether Martin is waiting in the chat for an answer.
+function readSourceHint() {
+  if (args.includes('--pick') || !process.env.GITHUB_EVENT_PATH) return 'manual';
+  try {
+    return JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf-8')).inputs?.source;
+  } catch {
+    return undefined;
+  }
+}
+
 async function runPick() {
   const request = readRequest();
+  const fromTelegram = TELEGRAM_SOURCES.includes(request.source ?? readSourceHint());
   const answer = async (problem) => {
     console.error(`❌ ${problem}`);
-    if (request.fromTelegram) {
+    if (fromTelegram) {
       await tell(formatNotice(`⚠️ ${problem}${/[.!?]$/.test(problem) ? '' : '.'} Send /help for the reply format.`));
       return; // told Martin; nothing broke
     }

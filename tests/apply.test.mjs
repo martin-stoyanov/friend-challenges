@@ -106,24 +106,25 @@ test('validateOverrides checks fields, types, values and lengths', () => {
   assert.deepEqual(validateOverrides({ difficulty: 'Hard' }), ['difficulty must be one of easy, medium, hard']);
 });
 
-test('parsePickEvent reads a dispatch payload or manual inputs, and refuses bad ones', () => {
+test('parsePickEvent reads workflow_dispatch inputs from the webhook or a hand-run, and refuses bad ones', () => {
+  const event = (inputs) => ({ inputs: { week_id: '2026-w43', pick: '2', ...inputs } });
   assert.deepEqual(
-    parsePickEvent('repository_dispatch', { client_payload: { weekId: '2026-w43', n: 2, overrides: { title: 'X' }, source: 'reply' } }),
+    parsePickEvent('workflow_dispatch', event({ overrides: JSON.stringify({ title: 'X' }), source: 'reply' })),
     { weekId: '2026-w43', n: 2, overrides: { title: 'X' }, source: 'reply' }
   );
   assert.deepEqual(
-    parsePickEvent('workflow_dispatch', { inputs: { week_id: '2026-w43', pick: '3', description: '  Mine.  ' } }),
+    parsePickEvent('workflow_dispatch', event({ pick: '3', description: '  Mine.  ' })),
     { weekId: '2026-w43', n: 3, overrides: { description: 'Mine.' }, source: 'manual' }
   );
-  assert.deepEqual(
-    parsePickEvent('workflow_dispatch', { inputs: { week_id: '2026-w43', pick: '1', description: '' } }).overrides,
-    {}
-  );
-  assert.match(parsePickEvent('repository_dispatch', { client_payload: { weekId: '../x', n: 1 } }).error, /not a week id/);
-  assert.match(parsePickEvent('repository_dispatch', { client_payload: { weekId: '2026-w43', n: '1' } }).error, /not a proposal number/);
-  assert.match(parsePickEvent('repository_dispatch', { client_payload: { weekId: '2026-w43', n: 0 } }).error, /not a proposal number/);
-  assert.match(parsePickEvent('repository_dispatch', {}).error, /not a week id/);
-  assert.match(parsePickEvent('push', {}).error, /push event/);
+  assert.deepEqual(parsePickEvent('workflow_dispatch', event({ description: '', overrides: '' })).overrides, {});
+  assert.match(parsePickEvent('workflow_dispatch', event({ week_id: '../x' })).error, /not a week id/);
+  for (const pick of ['0', '1.5', 'two', '', undefined]) {
+    assert.match(parsePickEvent('workflow_dispatch', event({ pick })).error, /not a proposal number/, String(pick));
+  }
+  assert.match(parsePickEvent('workflow_dispatch', event({ overrides: '{oops' })).error, /not valid JSON/);
+  assert.match(parsePickEvent('workflow_dispatch', event({ overrides: '[1]' })).error, /must be an object/);
+  assert.match(parsePickEvent('workflow_dispatch', {}).error, /not a week id/);
+  assert.match(parsePickEvent('repository_dispatch', event({})).error, /repository_dispatch event/);
 });
 
 test('fallback: nothing when the week is set, the recorded pick or #1 otherwise, generate when empty', () => {
@@ -224,13 +225,15 @@ test('picking the same number again keeps earlier changes; another number starts
 });
 
 test('a payload must name a known source, and junk values are quoted short', () => {
-  const payload = (extra) => ({ client_payload: { weekId: '2026-w43', n: 1, overrides: {}, source: 'button', ...extra } });
-  assert.equal(parsePickEvent('repository_dispatch', payload({})).source, 'button');
-  assert.match(parsePickEvent('repository_dispatch', payload({ source: 'telegram' })).error, /"telegram" is not a pick source/);
-  assert.match(parsePickEvent('repository_dispatch', payload({ source: undefined })).error, /not a pick source/);
-  const long = parsePickEvent('repository_dispatch', payload({ weekId: 'x'.repeat(5000) })).error;
+  const event = (inputs) => ({ inputs: { week_id: '2026-w43', pick: '1', source: 'button', ...inputs } });
+  assert.equal(parsePickEvent('workflow_dispatch', event({})).source, 'button');
+  assert.match(parsePickEvent('workflow_dispatch', event({ source: 'telegram' })).error, /"telegram" is not a pick source/);
+  const long = parsePickEvent('workflow_dispatch', event({ week_id: 'x'.repeat(5000) })).error;
   assert.ok(long.length < 120, `error is ${long.length} chars`);
-  assert.match(parsePickEvent('repository_dispatch', payload({ overrides: { title: '' } })).error, /non-empty text\.$/);
+  assert.match(
+    parsePickEvent('workflow_dispatch', event({ overrides: JSON.stringify({ title: '' }) })).error,
+    /non-empty text\.$/
+  );
 });
 
 test('a confirmation stays under the limit with real style warnings on a hostile description', () => {
