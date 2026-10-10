@@ -29,6 +29,15 @@ import {
   loadStyleGuide,
   STYLE_GUIDE_RELATIVE_PATH,
 } from './copy-style.mjs';
+import { getMissingWeeks, getNextMonday, getWeekId } from './lib/dates.mjs';
+import { callClaude, sleep } from './lib/claude.mjs';
+import {
+  buildChallengeRecord,
+  isDuplicateTitle,
+  toTikTokSearchUrl,
+  upsertChallenge,
+  validateChallenge,
+} from './lib/challenge.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CHALLENGES_PATH = path.join(__dirname, '..', 'src', 'data', 'challenges.json');
@@ -47,156 +56,6 @@ const rejectedTitles = (process.env.AVOID_TITLES || '')
   .split(',')
   .map(t => t.trim())
   .filter(Boolean);
-
-function formatDateLocal(date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-// TikTok /tag/ pages require the exact hashtag to be registered with videos, so a
-// model-invented slug dead-ends on "Couldn't find this hashtag". A /search?q= URL
-// matches videos by content and never hits that empty state, so we normalize every
-// exampleUrl to a search URL. Real search URLs pass through untouched; anything else
-// (including /tag/<slug>) becomes a search for the challenge title, which has proper
-// word boundaries a concatenated hashtag slug like "squeezeballchallenge" lacks.
-function toTikTokSearchUrl(url, title) {
-  const titleQuery = title.replace(/^The\s+/i, '').trim();
-  const build = (q) => `https://www.tiktok.com/search?q=${encodeURIComponent(q.trim())}`;
-  try {
-    const u = new URL(url);
-    if (/(^|\.)tiktok\.com$/i.test(u.hostname) && u.pathname.startsWith('/search') && u.searchParams.get('q')) {
-      return url; // already a usable search URL
-    }
-  } catch {
-    // malformed URL — fall through to title-based query
-  }
-  return build(titleQuery);
-}
-
-function getNextMonday() {
-  const now = new Date();
-  const day = now.getDay();
-  const daysUntilMonday = day === 0 ? 1 : day === 1 ? 0 : 8 - day;
-  const nextMonday = new Date(now);
-  nextMonday.setDate(now.getDate() + daysUntilMonday);
-  return formatDateLocal(nextMonday);
-}
-
-function addDays(dateStr, days) {
-  const date = new Date(dateStr + 'T00:00:00');
-  date.setDate(date.getDate() + days);
-  return formatDateLocal(date);
-}
-
-function getMissingWeeks(existing) {
-  const sorted = [...existing].sort(
-    (a, b) => new Date(b.weekOf).getTime() - new Date(a.weekOf).getTime()
-  );
-  const lastWeekOf = sorted[0]?.weekOf;
-  if (!lastWeekOf) return [getNextMonday()];
-
-  const nextMonday = getNextMonday();
-  const weeks = [];
-  let cursor = addDays(lastWeekOf, 7); // start from the week after the last one
-
-  while (cursor <= nextMonday) {
-    weeks.push(cursor);
-    cursor = addDays(cursor, 7);
-  }
-
-  return weeks;
-}
-
-function getWeekId(dateStr) {
-  const date = new Date(dateStr + 'T00:00:00');
-  // Shift to Thursday of the same ISO week (ISO weeks are defined by their Thursday)
-  const thursday = new Date(date);
-  thursday.setDate(date.getDate() + (4 - ((date.getDay() + 6) % 7 + 1)));
-  const year = thursday.getFullYear();
-  const jan1 = new Date(year, 0, 1);
-  const weekNum = Math.ceil(((thursday - jan1) / (24 * 60 * 60 * 1000) + 1) / 7);
-  return `${year}-w${String(weekNum).padStart(2, '0')}`;
-}
-
-async function callClaude(prompt, systemPrompt) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    console.error('❌ ANTHROPIC_API_KEY environment variable is required');
-    console.error('   Set it with: ANTHROPIC_API_KEY=sk-ant-... node scripts/generate-challenge.mjs');
-    process.exit(1);
-  }
-
-  const body = JSON.stringify({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 2048,
-    system: systemPrompt,
-    tools: [
-      {
-        type: 'web_search_20250305',
-        name: 'web_search',
-        max_uses: 1,
-      },
-    ],
-    messages: [
-      { role: 'user', content: prompt },
-    ],
-  });
-
-  // Retry on rate limits (429) and transient server errors (5xx) with backoff.
-  // The org's per-minute token bucket refills over ~60s, so we wait it out
-  // rather than failing — this keeps unattended runs (e.g. the GitHub cron) reliable.
-  const maxRateLimitRetries = 5;
-  let response;
-  for (let attempt = 0; ; attempt++) {
-    response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body,
-    });
-
-    if (response.ok) break;
-
-    const retryable = response.status === 429 || response.status >= 500;
-    if (!retryable || attempt >= maxRateLimitRetries) {
-      const error = await response.text();
-      throw new Error(`Claude API error (${response.status}): ${error}`);
-    }
-
-    // Honor the server's retry-after (seconds) when present, else exponential backoff.
-    const retryAfter = Number(response.headers.get('retry-after'));
-    const waitMs = Number.isFinite(retryAfter) && retryAfter > 0
-      ? retryAfter * 1000
-      : Math.min(60_000, 2_000 * 2 ** attempt);
-    console.warn(`⏳ ${response.status} from API — waiting ${Math.round(waitMs / 1000)}s before retry (${attempt + 1}/${maxRateLimitRetries})...`);
-    await sleep(waitMs);
-  }
-
-  const data = await response.json();
-  // Response may contain web_search_tool_use / web_search_tool_result blocks — find the final text block
-  const textBlock = data.content.find(block => block.type === 'text');
-  if (!textBlock) {
-    throw new Error(`No text block in Claude response: ${JSON.stringify(data.content)}`);
-  }
-  const text = textBlock.text;
-
-  // Extract JSON from the response (Claude may wrap it in markdown code fences)
-  const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, text];
-  const jsonStr = jsonMatch[1].trim();
-
-  try {
-    return JSON.parse(jsonStr);
-  } catch {
-    throw new Error(`Failed to parse JSON from Claude response:\n${text}`);
-  }
-}
 
 function getSystemPrompt() {
   const today = new Date().toISOString().split('T')[0];
@@ -354,19 +213,10 @@ Keep the same challenge and rewrite the description so it passes. Respond with O
   }
 
   // Validate the result
-  const requiredFields = ['title', 'description', 'category', 'difficulty', 'emoji', 'trendSource', 'players', 'timeEstimate', 'exampleUrl'];
-  for (const field of requiredFields) {
-    if (!result[field]) {
-      console.error(`❌ AI response missing required field: ${field}`);
-      console.error('   Raw response:', JSON.stringify(result, null, 2));
-      return null;
-    }
-  }
-
-  // Reject non-http(s) URLs so nothing like a javascript:/data: URL lands in
-  // challenges.json and later gets rendered as an href on the site.
-  if (!/^https?:\/\//i.test(result.exampleUrl)) {
-    console.error(`❌ exampleUrl is not an http(s) URL: ${result.exampleUrl}`);
+  const problems = validateChallenge(result);
+  if (problems.length) {
+    for (const problem of problems) console.error(`❌ AI response ${problem}`);
+    console.error('   Raw response:', JSON.stringify(result, null, 2));
     return null;
   }
 
@@ -374,32 +224,14 @@ Keep the same challenge and rewrite the description so it passes. Respond with O
   result.exampleUrl = toTikTokSearchUrl(result.exampleUrl, result.title);
 
   // Check for near-duplicates (fuzzy title match)
-  const normalizedNew = result.title.toLowerCase().replace(/[^a-z]/g, '');
-  const isDuplicate = existingTitles.some(t => {
-    const normalizedExisting = t.toLowerCase().replace(/[^a-z]/g, '');
-    return normalizedNew === normalizedExisting || 
-           normalizedNew.includes(normalizedExisting) || 
-           normalizedExisting.includes(normalizedNew);
-  });
+  const isDuplicate = isDuplicateTitle(result.title, existingTitles);
 
   if (isDuplicate) {
     console.error(`⚠️  Duplicate detected for "${result.title}" — skipping.`);
     return null;
   }
 
-  const newChallenge = {
-    id: weekId,
-    weekOf,
-    title: result.title,
-    description: result.description,
-    category: result.category,
-    difficulty: result.difficulty,
-    emoji: result.emoji,
-    trendSource: result.trendSource,
-    players: result.players,
-    timeEstimate: result.timeEstimate,
-    exampleUrl: result.exampleUrl,
-  };
+  const newChallenge = buildChallengeRecord(result, weekId, weekOf);
 
   console.log(`✅ ${result.emoji} ${result.title}`);
   console.log(`   📝 ${result.description}`);
@@ -466,10 +298,7 @@ async function main() {
     return;
   }
 
-  // Prepend all new challenges (newest first)
-  const updated = [...generated.reverse(), ...existing];
-  // Sort newest first
-  updated.sort((a, b) => new Date(b.weekOf).getTime() - new Date(a.weekOf).getTime());
+  const updated = generated.reduce((list, c) => upsertChallenge(list, c), existing);
   fs.writeFileSync(CHALLENGES_PATH, JSON.stringify(updated, null, 2) + '\n');
 
   console.log(`💾 Written ${generated.length} challenge(s) to ${CHALLENGES_PATH}`);
