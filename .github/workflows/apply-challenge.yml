@@ -1,0 +1,134 @@
+name: Apply Challenge
+
+# A pick from Telegram (started by the webhook), a pick made by hand from the
+# Actions tab, or Sunday's fallback. docs/plans/telegram-weekly-proposals.md,
+# Steps 7 and 9.
+
+on:
+  schedule:
+    # Sunday 12:00 UTC: publish #1 for the coming week if nothing was picked.
+    - cron: '0 12 * * 0'
+  workflow_dispatch:
+    inputs:
+      week_id:
+        description: 'Week id such as 2026-w43 (empty: the coming week)'
+        type: string
+        default: ''
+      pick:
+        description: 'Proposal number'
+        type: string
+        default: ''
+      description:
+        description: 'Your own description (optional, used as written)'
+        type: string
+        default: ''
+      overrides:
+        description: 'Field overrides as JSON (set by the Telegram webhook)'
+        type: string
+        default: ''
+      source:
+        description: 'Where the pick came from (set by the Telegram webhook)'
+        type: string
+        default: manual
+
+permissions:
+  contents: write
+
+# No concurrency group: GitHub cancels a waiting run when another queues behind
+# it, which would silently drop a pick. Concurrent picks are handled by
+# re-applying on the new master when a push loses a race.
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # The scripts use only Node built-ins, so there is no npm ci.
+      - name: Apply and push
+        id: apply
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        # The pick reaches apply-choice.mjs through $GITHUB_EVENT_PATH, never
+        # through this shell. Applying is deterministic, so after a lost push
+        # race it simply runs again on the new master.
+        run: |
+          git config user.name "Challenge Bot"
+          git config user.email "bot@friend-challenges.app"
+          MODE=()
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then MODE=(--fallback); fi
+          for attempt in 1 2 3; do
+            git fetch -q origin master
+            git reset -q --hard origin/master
+            rm -f "$RUNNER_TEMP/confirm.json"
+            : > "$RUNNER_TEMP/apply-output"
+            GENERATED=false
+            GITHUB_OUTPUT="$RUNNER_TEMP/apply-output" \
+              node scripts/apply-choice.mjs "${MODE[@]}" --message-out "$RUNNER_TEMP/confirm.json"
+            if grep -qx 'generate=true' "$RUNNER_TEMP/apply-output"; then
+              node scripts/generate-challenge.mjs
+              # The generator exits 0 even when it produced nothing; an empty
+              # week must not pass quietly.
+              if git diff --quiet -- src/data/challenges.json; then
+                echo "The fallback generator added no challenge."
+                exit 1
+              fi
+              GENERATED=true
+            fi
+            # Report-only: Martin's own copy is published as written.
+            npm run --silent lint:copy || echo "::warning::A description breaks writing-style.md"
+            git add src/data/challenges.json proposals/
+            if git diff --cached --quiet; then
+              echo "Nothing to commit."
+              exit 0
+            fi
+            git commit -q -m "🎯 Weekly challenge pick"
+            if git push -q origin HEAD:master; then
+              # Outputs describe only the attempt that landed.
+              echo "pushed=true" >> "$GITHUB_OUTPUT"
+              echo "generated=$GENERATED" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "Push lost a race (attempt $attempt); applying again on the new master."
+          done
+          echo "Could not push after 3 attempts."
+          exit 1
+
+      # Only now is the pick really saved, so only now is it confirmed.
+      - name: Send the confirmation
+        if: steps.apply.outputs.pushed == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -f "$RUNNER_TEMP/confirm.json" ]; then
+            node scripts/telegram-notify.mjs --file "$RUNNER_TEMP/confirm.json"
+          fi
+
+      - name: Tell Martin the fallback generated one
+        if: steps.apply.outputs.generated == 'true' && steps.apply.outputs.pushed == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          node scripts/telegram-notify.mjs "⏰ Nothing was proposed for the coming week, so the fallback generated a challenge on its own. It shows on the site from Monday."
+
+      - name: Tell Martin it failed
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          PUSHED: ${{ steps.apply.outputs.pushed }}
+        run: |
+          if [ "$PUSHED" = "true" ]; then
+            node scripts/telegram-notify.mjs "⚠️ The pick was saved and goes live as planned, but the confirmation didn't go out. Details: $RUN_URL"
+          else
+            node scripts/telegram-notify.mjs "❌ Applying the challenge pick failed; nothing was published. Details: $RUN_URL"
+          fi

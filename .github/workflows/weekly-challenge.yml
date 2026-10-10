@@ -1,9 +1,10 @@
 name: Weekly Challenge Generator
 
+# Manual only. The weekly challenge now comes from Telegram proposals
+# (propose-challenges.yml and apply-challenge.yml); this stays for generating
+# one directly or backfilling missing weeks.
+
 on:
-  schedule:
-    # Every Monday at 9:00 UTC
-    - cron: '0 9 * * 1'
   workflow_dispatch:
     inputs:
       backfill:
@@ -80,5 +81,16 @@ jobs:
             echo "No changes to commit."
           else
             git commit -m "🔥 New weekly challenge [$(date -u +%Y-%m-%d)]"
+            # A pick may have landed while this ran; replay on top of it.
+            git pull --rebase -q origin master
             git push
           fi
+
+      - name: Tell Martin it failed
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          node scripts/telegram-notify.mjs "❌ The weekly challenge generator failed. Details: $RUN_URL"

@@ -141,3 +141,32 @@ export function mergeRewrites(proposals, rewrites, check) {
   });
   return { proposals: merged, stillFailing };
 }
+
+/**
+ * Puts an already-sent batch back into the week's file. Used when a propose
+ * run's push lost a race: the workflow resets to the new master and restores
+ * the exact proposals (with the numbers Martin already has on his phone)
+ * instead of generating again. A number taken by a different proposal is an
+ * error, since the buttons in the chat would then point at the wrong one.
+ */
+export function restoreBatch(file, added) {
+  const byNumber = new Map(file.proposals.map((p) => [p.n, p]));
+  for (const proposal of added) {
+    const there = byNumber.get(proposal.n);
+    if (there && there.title !== proposal.title) {
+      throw new Error(`#${proposal.n} for ${file.weekId} is already "${there.title}", not "${proposal.title}"`);
+    }
+  }
+  const missing = added.filter((p) => !byNumber.has(p.n));
+  return { ...file, proposals: [...file.proposals, ...missing].sort((a, b) => a.n - b.n) };
+}
+
+/**
+ * True when the week's newest batch went out less than `windowMs` ago. Two taps
+ * on "more" queue two runs; the second starts seconds after the first pushes,
+ * sees its fresh batch and stands down instead of sending another.
+ */
+export function hasFreshBatch(file, now = new Date(), windowMs = 90_000) {
+  const newest = Math.max(0, ...(file?.proposals ?? []).map((p) => Date.parse(p.createdAt) || 0));
+  return newest > 0 && now.getTime() - newest < windowMs;
+}

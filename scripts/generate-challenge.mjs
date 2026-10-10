@@ -22,6 +22,15 @@
  *                proposals/<weekId>.json and send them to Telegram for a pick
  *                (needs TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID unless --dry-run)
  *   --more       With --propose: add another batch to the week's proposals
+ *   --week-id    With --propose: the week as an id (2026-w43) instead of --week
+ *   --from-event Read --propose options from the GitHub event that started the
+ *                run (propose-challenges.yml): a schedule means a new batch for
+ *                the coming week; a workflow_dispatch passes mode, week_id,
+ *                count and dry_run as inputs. Inputs are read as data, never
+ *                through a shell.
+ *   --batch-out <file>      With --propose: also write the sent batch to <file>
+ *   --restore-batch <file>  Put a batch written by --batch-out back into the
+ *                week's file, keeping its numbers (after a lost push race)
  */
 
 import fs from 'fs';
@@ -33,18 +42,27 @@ import {
   loadStyleGuide,
   STYLE_GUIDE_RELATIVE_PATH,
 } from './copy-style.mjs';
-import { formatDateLocal, getMissingWeeks, getNextMonday, getWeekId } from './lib/dates.mjs';
+import {
+  formatDateLocal,
+  getCurrentMonday,
+  getMissingWeeks,
+  getNextMonday,
+  getWeekId,
+  weekIdToMonday,
+} from './lib/dates.mjs';
 import {
   appendBatch,
   createProposals,
+  hasFreshBatch,
   mergeRewrites,
   proposalsPath,
   proposedTitles,
   readProposals,
+  restoreBatch,
   selectProposals,
   writeProposals,
 } from './lib/proposals.mjs';
-import { escapeHtml, sendMessage, sendProposalBatch } from './lib/telegram.mjs';
+import { escapeHtml, formatNotice, sendMessage, sendProposalBatch } from './lib/telegram.mjs';
 import { callClaude, sleep } from './lib/claude.mjs';
 import {
   buildChallengeRecord,
@@ -59,8 +77,38 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CHALLENGES_PATH = path.join(__dirname, '..', 'src', 'data', 'challenges.json');
 
+const WEEK_ID = /^\d{4}-w\d{2}$/;
+
+/**
+ * Turns the GitHub event behind --from-event into ordinary --propose flags.
+ * Each input is checked before it becomes an argument, so a value like
+ * "--backfill" can't smuggle in a flag.
+ */
+function withEventArgs(argv) {
+  if (!argv.includes('--from-event')) return argv;
+  const out = argv.filter(a => a !== '--from-event');
+  const eventName = process.env.GITHUB_EVENT_NAME;
+  const inputs = eventName === 'workflow_dispatch' && process.env.GITHUB_EVENT_PATH
+    ? JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, 'utf-8')).inputs ?? {}
+    : {};
+  const count = String(inputs.count ?? '').trim();
+  out.push('--propose', /^\d+$/.test(count) ? count : '4');
+  if (inputs.mode === 'more') out.push('--more');
+  const weekId = String(inputs.week_id ?? '').trim();
+  if (weekId) {
+    if (!WEEK_ID.test(weekId)) {
+      console.error(`❌ week_id must look like 2026-w43, got ${JSON.stringify(weekId.slice(0, 40))}`);
+      process.exit(1);
+    }
+    out.push('--week-id', weekId);
+  }
+  if (inputs.dry_run === true || inputs.dry_run === 'true') out.push('--dry-run');
+  return out;
+}
+
 // Parse CLI args
-const args = process.argv.slice(2);
+const fromEvent = process.argv.includes('--from-event');
+const args = withEventArgs(process.argv.slice(2));
 const dryRun = args.includes('--dry-run');
 const backfill = args.includes('--backfill');
 const categoryIdx = args.indexOf('--category');
@@ -71,6 +119,12 @@ const proposeIdx = args.indexOf('--propose');
 const propose = proposeIdx !== -1;
 const proposeCount = /^\d+$/.test(args[proposeIdx + 1] ?? '') ? Number(args[proposeIdx + 1]) : 4;
 const more = args.includes('--more');
+const weekIdIdx = args.indexOf('--week-id');
+const forcedWeekId = weekIdIdx !== -1 ? args[weekIdIdx + 1] : null;
+const batchOutIdx = args.indexOf('--batch-out');
+const batchOut = batchOutIdx !== -1 ? args[batchOutIdx + 1] : null;
+const restoreIdx = args.indexOf('--restore-batch');
+const restoreFrom = restoreIdx !== -1 ? args[restoreIdx + 1] : null;
 // Titles that were generated but rejected as low quality. They are no longer in
 // challenges.json, so the avoid-list can't see them and the model regenerates them.
 const rejectedTitles = (process.env.AVOID_TITLES || '')
@@ -393,13 +447,32 @@ async function runPropose(existing) {
     process.exit(1);
   }
 
-  const weekOf = forcedWeek || getNextMonday();
+  const weekOf = forcedWeekId ? weekIdToMonday(forcedWeekId) : forcedWeek || getNextMonday();
   const weekId = getWeekId(weekOf);
   const current = readProposals(weekId);
 
+  // Requests Martin made from the chat get an answer there. Run from the
+  // workflow that is not a failure (exit 0); typed by hand it is (exit 1).
+  const answer = async (text) => {
+    console.error(`❌ ${text}`);
+    if (!dryRun) await sendMessage(chatId, formatNotice(`⚠️ ${text}`));
+    process.exit(fromEvent ? 0 : 1);
+  };
+
+  if (weekOf < getCurrentMonday()) {
+    await answer(`${weekId} is in the archive now, so it can't get more ideas.`);
+  }
   if (more && !current) {
-    console.error(`❌ Nothing has been proposed for ${weekId} yet; run --propose first.`);
-    process.exit(1);
+    await answer(`Nothing has been proposed for ${weekId} yet, so there is nothing to add more ideas to.`);
+  }
+  if (more && hasFreshBatch(current)) {
+    // Most likely a double tap. Say so, so the "more ideas coming" toast isn't
+    // left hanging.
+    console.log(`⏭️  A batch for ${weekId} went out moments ago; not sending another.`);
+    if (!dryRun) {
+      await sendMessage(chatId, formatNotice('A new batch went out moments ago, just above. Tap more again if you want another one.'));
+    }
+    return;
   }
   if (!more && current) {
     console.log(`⏭️  ${weekId} already has proposals (${proposalsPath(weekId)}). Use --more for another batch.`);
@@ -451,9 +524,24 @@ async function runPropose(existing) {
   console.log(`📨 Sent ${added.length} proposal(s) to Telegram.`);
   writeProposals(file);
   console.log(`💾 Saved to ${proposalsPath(weekId)}`);
+  if (batchOut) fs.writeFileSync(batchOut, JSON.stringify({ weekId, weekOf, added }));
+}
+
+// After a lost push race the workflow resets to the new master and calls this
+// to put the batch it already sent back, numbers and all.
+function runRestoreBatch() {
+  const { weekId, weekOf, added } = JSON.parse(fs.readFileSync(restoreFrom, 'utf-8'));
+  if (!WEEK_ID.test(weekId) || !Array.isArray(added)) throw new Error(`${restoreFrom} is not a saved batch`);
+  const file = restoreBatch(readProposals(weekId) ?? createProposals(weekId, weekOf), added);
+  writeProposals(file);
+  console.log(`♻️  Restored ${added.length} proposal(s) to ${proposalsPath(weekId)}`);
 }
 
 async function main() {
+  if (restoreFrom) {
+    runRestoreBatch();
+    return;
+  }
   console.log('🔥 Friend Challenges — AI Challenge Generator\n');
 
   // weekOf is compared as a string everywhere (src/lib/challenges.ts), so a
@@ -472,6 +560,10 @@ async function main() {
   }
   if (more && !propose) {
     console.error('❌ --more only works with --propose');
+    process.exit(1);
+  }
+  if (forcedWeekId && (!WEEK_ID.test(forcedWeekId) || forcedWeek)) {
+    console.error('❌ --week-id must look like 2026-w43, and does not combine with --week');
     process.exit(1);
   }
 

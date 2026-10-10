@@ -53,6 +53,20 @@ export function getMissingWeeks(existing, now = new Date()) {
   return weeks;
 }
 
+/** The Monday of an ISO week id: "2026-w43" → "2026-10-19". Inverse of getWeekId. */
+export function weekIdToMonday(weekId) {
+  const match = /^(\d{4})-w(\d{2})$/.exec(weekId);
+  if (!match) throw new Error(`Not a week id: ${weekId}`);
+  const [, year, week] = match.map(Number);
+  // 4 January is always in ISO week 1; step back to its Monday.
+  const jan4 = new Date(year, 0, 4);
+  const week1Monday = addDays(formatDateLocal(jan4), -((jan4.getDay() + 6) % 7));
+  const monday = addDays(week1Monday, (week - 1) * 7);
+  // w00, w54 or w53 in a 52-week year would land in another week.
+  if (week < 1 || getWeekId(monday) !== weekId) throw new Error(`No such week: ${weekId}`);
+  return monday;
+}
+
 /** ISO week id, e.g. "2026-w42". This is the challenge's `id` and its Supabase key. */
 export function getWeekId(dateStr) {
   const date = new Date(dateStr + 'T00:00:00');

@@ -7,11 +7,13 @@ import {
   appendBatch,
   createProposals,
   findProposal,
+  hasFreshBatch,
   markPicked,
   mergeRewrites,
   proposalsPath,
   proposedTitles,
   readProposals,
+  restoreBatch,
   selectProposals,
   writeProposals,
 } from '../scripts/lib/proposals.mjs';
@@ -170,4 +172,29 @@ test('mergeRewrites with a short or broken reply keeps every draft', () => {
     assert.deepEqual(merged, proposals);
     assert.equal(stillFailing.length, 2);
   }
+});
+
+test('restoreBatch puts a sent batch back with its numbers, once', () => {
+  const sent = appendBatch(createProposals('2026-w43', '2026-10-19'), ['A', 'B', 'C'].map(draft), NOW);
+  const more = appendBatch(sent.file, ['D', 'E'].map(draft), NOW);
+  // The remote has the first batch and a pick, but not the "more" batch.
+  const remote = markPicked(sent.file, { n: 2, source: 'button', overrides: {} }, NOW);
+  const restored = restoreBatch(remote, more.added);
+  assert.deepEqual(restored.proposals.map((p) => p.n), [1, 2, 3, 4, 5]);
+  assert.equal(restored.pick.n, 2, 'the pick on the remote survives');
+  assert.deepEqual(restoreBatch(restored, more.added), restored, 'a second restore changes nothing');
+});
+
+test('restoreBatch refuses a number already used by another proposal', () => {
+  const remote = appendBatch(createProposals('2026-w43', '2026-10-19'), ['A', 'B'].map(draft), NOW).file;
+  const clash = [{ ...draft('Z'), n: 2, batch: 2, createdAt: NOW.toISOString() }];
+  assert.throws(() => restoreBatch(remote, clash), /#2 for 2026-w43 is already "B", not "Z"/);
+});
+
+test('hasFreshBatch is true only within the window after the newest batch', () => {
+  const { file } = appendBatch(createProposals('2026-w43', '2026-10-19'), [draft('A')], NOW);
+  assert.equal(hasFreshBatch(file, new Date(NOW.getTime() + 60_000)), true);
+  assert.equal(hasFreshBatch(file, new Date(NOW.getTime() + 100_000)), false);
+  assert.equal(hasFreshBatch(null, NOW), false);
+  assert.equal(hasFreshBatch(createProposals('2026-w43', '2026-10-19'), NOW), false);
 });

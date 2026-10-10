@@ -279,6 +279,12 @@ Pure refactor; `generate-challenge.mjs` behaves exactly as before.
     two quick picks both land. It uses no concurrency group, because GitHub
     drops a waiting run when another queues behind it.
   - Sends the confirmation only after the push succeeds.
+- Generator support: `--from-event` turns the event's inputs into flags after
+  checking each one; `--week-id` names a week; `--batch-out` and
+  `--restore-batch` let a propose run that lost a push race restore the batch
+  it already sent, with the same numbers, instead of generating again. A "more"
+  arriving within three minutes of the last batch stands down, so a double tap
+  sends one batch.
 - `weekly-challenge.yml`: schedule removed; it stays manual for backfills.
 - All three:
   - push with a retry that handles a concurrent commit;
@@ -331,6 +337,6 @@ Pure refactor; `generate-challenge.mjs` behaves exactly as before.
 | 5 | done | 47b61f2 |
 | 6 | done | 334d844 |
 | 7 | done | a6becac |
-| 8 | done | (this commit) |
-| 9 | pending | |
+| 8 | done | 75cffbd |
+| 9 | done | (this commit) |
 | 10 | pending | |

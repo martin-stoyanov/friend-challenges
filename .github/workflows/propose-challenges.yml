@@ -1,0 +1,95 @@
+name: Propose Challenges
+
+# Thursday: four ideas for the coming Monday go to Martin on Telegram.
+# The Telegram webhook also starts this with mode "more" for another batch.
+# docs/plans/telegram-weekly-proposals.md, Steps 6 and 9.
+
+on:
+  schedule:
+    # Thursday 12:00 UTC. GitHub has started this repo's crons hours late, so
+    # there is plenty of room before the Sunday fallback.
+    - cron: '0 12 * * 4'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'new: the first batch for a week; more: another batch'
+        type: choice
+        options: [new, more]
+        default: new
+      week_id:
+        description: 'Week id such as 2026-w43 (empty: the coming week)'
+        type: string
+        default: ''
+      count:
+        description: 'How many ideas (1-8)'
+        type: string
+        default: '4'
+      dry_run:
+        description: 'Print the ideas without saving or sending them'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+# Two "more" taps must not number over each other, so runs take turns. A run
+# waiting here is replaced by a newer one, which for "more" is what we want.
+concurrency:
+  group: propose-challenges
+  cancel-in-progress: false
+
+jobs:
+  propose:
+    runs-on: ubuntu-latest
+    steps:
+      # The tip of master, not the commit this run was queued on: a run that
+      # waited behind another must see the batch that run just pushed.
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # The scripts use only Node built-ins, so there is no npm ci.
+      - name: Propose and send
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        # Inputs reach the script through $GITHUB_EVENT_PATH (--from-event),
+        # never through this shell.
+        run: node scripts/generate-challenge.mjs --from-event --batch-out "$RUNNER_TEMP/batch.json"
+
+      - name: Commit and push
+        run: |
+          git config user.name "Challenge Bot"
+          git config user.email "bot@friend-challenges.app"
+          git add proposals/
+          if git diff --cached --quiet; then
+            echo "Nothing new to commit."
+            exit 0
+          fi
+          # Proposals don't change the site, so Netlify skips this commit.
+          git commit -q -m "💡 Challenge proposals [skip netlify]"
+          for attempt in 1 2 3; do
+            if git push -q origin HEAD:master; then exit 0; fi
+            echo "Push lost a race (attempt $attempt); restoring the batch on the new master."
+            git fetch -q origin master
+            git reset -q --hard origin/master
+            node scripts/generate-challenge.mjs --restore-batch "$RUNNER_TEMP/batch.json"
+            git add proposals/
+            git commit -q -m "💡 Challenge proposals [skip netlify]" || true
+          done
+          echo "Could not push after 3 attempts."
+          exit 1
+
+      - name: Tell Martin it failed
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          node scripts/telegram-notify.mjs "❌ Proposing challenges failed. If ideas just arrived in this chat, they weren't saved and their buttons won't work. Details: $RUN_URL"

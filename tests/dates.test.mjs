@@ -1,6 +1,6 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { addDays, getCurrentMonday, getMissingWeeks, getNextMonday, getWeekId } from '../scripts/lib/dates.mjs';
+import { addDays, getCurrentMonday, getMissingWeeks, getNextMonday, getWeekId, weekIdToMonday } from '../scripts/lib/dates.mjs';
 
 // Date math is local-time, so the DST tests pin a zone instead of trusting
 // whatever the machine running them is set to.
@@ -71,4 +71,17 @@ test('getCurrentMonday is the Monday that starts the week, Sunday included', () 
   assert.equal(getCurrentMonday(new Date('2026-10-16T12:00:00')), '2026-10-12'); // Friday
   assert.equal(getCurrentMonday(new Date('2026-10-18T23:59:00')), '2026-10-12'); // Sunday
   assert.equal(getCurrentMonday(new Date('2027-01-01T12:00:00')), '2026-12-28'); // across a year
+});
+
+test('weekIdToMonday inverts getWeekId for every Monday from 2024 to 2032', () => {
+  for (let monday = '2024-01-01'; monday < '2033-01-01'; monday = addDays(monday, 7)) {
+    assert.equal(weekIdToMonday(getWeekId(monday)), monday, monday);
+  }
+  assert.equal(weekIdToMonday('2026-w43'), '2026-10-19');
+  assert.equal(weekIdToMonday('2026-w01'), '2025-12-29');
+  assert.equal(weekIdToMonday('2026-w53'), '2026-12-28');
+  assert.throws(() => weekIdToMonday('2026-43'), /Not a week id/);
+  for (const bad of ['2026-w00', '2026-w54', '2026-w99', '2025-w53']) {
+    assert.throws(() => weekIdToMonday(bad), /No such week/, bad);
+  }
 });
