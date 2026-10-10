@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { parseBody } from '../scripts/lib/reply.mjs';
 import {
   MAX_MESSAGE_LENGTH,
   escapeHtml,
@@ -7,6 +8,7 @@ import {
   formatHeader,
   formatProposal,
   proposalTag,
+  replyGuideText,
   sendMessage,
   telegramApi,
 } from '../scripts/lib/telegram.mjs';
@@ -152,4 +154,14 @@ test('a network failure names the method and the cause, never the token', async 
       return true;
     }
   );
+});
+
+test('every field example in the reply guide parses as written', () => {
+  const examples = [...replyGuideText().matchAll(/<code>([a-z]+: [^<]+)<\/code>/g)].map((m) => m[1]);
+  assert.ok(examples.length >= 7, `found ${examples.length} examples`);
+  for (const example of examples) {
+    const parsed = parseBody(example.replace('https://…', 'https://example.com'));
+    assert.equal(parsed.error, undefined, example);
+    assert.equal(Object.keys(parsed.overrides).length, 1, example);
+  }
 });
