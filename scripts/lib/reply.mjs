@@ -15,6 +15,8 @@
  * (plan D5).
  */
 
+import { CATEGORIES, DIFFICULTIES } from './challenge.mjs';
+
 const WEEK_ID = String.raw`\d{4}-w\d{2}`;
 const PICK_DATA = new RegExp(`^pick:(${WEEK_ID}):(\\d{1,3})$`);
 const MORE_DATA = new RegExp(`^more:(${WEEK_ID})$`);
@@ -48,8 +50,8 @@ const FIELD_LINE = new RegExp(`^\\s*(${Object.keys(FIELD_KEYS).join('|')})\\s*:\
 const EMBEDDED_KEY = new RegExp(`(?:^|\\s)(${Object.keys(FIELD_KEYS).join('|')})\\s*:`, 'i');
 
 const ENUMS = {
-  category: ['friend', 'couple', 'both'],
-  difficulty: ['easy', 'medium', 'hard'],
+  category: CATEGORIES,
+  difficulty: DIFFICULTIES,
 };
 
 /**

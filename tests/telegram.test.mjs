@@ -10,6 +10,7 @@ import {
   proposalTag,
   replyGuideText,
   sendMessage,
+  sendProposalBatch,
   telegramApi,
 } from '../scripts/lib/telegram.mjs';
 
@@ -148,12 +149,48 @@ test('a network failure names the method and the cause, never the token', async 
     throw new TypeError('fetch failed', { cause: Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' }) });
   };
   await assert.rejects(
-    telegramApi('sendMessage', {}, { token: 'SECRET-TOKEN', fetchImpl }),
+    telegramApi('sendMessage', {}, { token: 'SECRET-TOKEN', fetchImpl, retries: 0 }),
     (err) => {
       assert.equal(err.message, 'Telegram sendMessage request failed: ECONNREFUSED');
       return true;
     }
   );
+});
+
+test('a 429 waits as long as Telegram asks, then retries; a 400 does not retry', async () => {
+  const waits = [];
+  const sleepImpl = async (ms) => { waits.push(ms); };
+  const replies = [
+    new Response(JSON.stringify({ ok: false, description: 'Too Many Requests', parameters: { retry_after: 3 } }), { status: 429 }),
+    new Response(JSON.stringify({ ok: false, description: 'Bad Gateway' }), { status: 502 }),
+    new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }), { status: 200 }),
+  ];
+  let calls = 0;
+  const fetchImpl = async () => { calls++; return replies.shift(); };
+  assert.deepEqual(await telegramApi('sendMessage', {}, { token: 'T', fetchImpl, sleepImpl }), { message_id: 1 });
+  assert.equal(calls, 3);
+  assert.deepEqual(waits, [3000, 2000]);
+
+  let badCalls = 0;
+  const bad = async () => { badCalls++; return new Response(JSON.stringify({ ok: false, description: 'Bad Request' }), { status: 400 }); };
+  await assert.rejects(telegramApi('sendMessage', {}, { token: 'T', fetchImpl: bad, sleepImpl }), /\(400\)/);
+  assert.equal(badCalls, 1);
+});
+
+test('retries stop after the limit, and a wait over 30s is not attempted', async () => {
+  const sleepImpl = async () => {};
+  let calls = 0;
+  const failing = async () => { calls++; return new Response('{}', { status: 503 }); };
+  await assert.rejects(telegramApi('getMe', {}, { token: 'T', fetchImpl: failing, sleepImpl, retries: 2 }), /\(503\)/);
+  assert.equal(calls, 3);
+
+  calls = 0;
+  const longWait = async () => {
+    calls++;
+    return new Response(JSON.stringify({ ok: false, parameters: { retry_after: 120 } }), { status: 429 });
+  };
+  await assert.rejects(telegramApi('getMe', {}, { token: 'T', fetchImpl: longWait, sleepImpl }), /\(429\)/);
+  assert.equal(calls, 1);
 });
 
 test('every field example in the reply guide parses as written', () => {
@@ -164,4 +201,49 @@ test('every field example in the reply guide parses as written', () => {
     assert.equal(parsed.error, undefined, example);
     assert.equal(Object.keys(parsed.overrides).length, 1, example);
   }
+});
+
+test('a batch goes out as header, each proposal, then the footer', async () => {
+  const sent = [];
+  const fetchImpl = async (_url, init) => {
+    sent.push(JSON.parse(init.body));
+    return new Response(JSON.stringify({ ok: true, result: {} }), { status: 200 });
+  };
+  const proposals = [{ ...proposal, n: 5 }, { ...proposal, n: 6, title: 'The Sock Challenge' }];
+  await sendProposalBatch(
+    99,
+    { weekId: '2026-w43', weekOf: '2026-10-19', proposals, more: true, moreCount: 4 },
+    { token: 'T', fetchImpl }
+  );
+  assert.equal(sent.length, 4);
+  assert.ok(sent.every((m) => m.chat_id === 99 && m.parse_mode === 'HTML'));
+  assert.match(sent[0].text, /2 more ideas for the week of Mon 19 Oct/);
+  assert.match(sent[1].text, /#5 · 2026-w43$/);
+  assert.match(sent[2].text, /#6 · 2026-w43$/);
+  assert.equal(sent[3].reply_markup.inline_keyboard[0][0].text, '🔄 4 more');
+});
+
+test('a batch that fails partway deletes what it sent and rethrows', async () => {
+  const calls = [];
+  let nextId = 100;
+  const fetchImpl = async (url, init) => {
+    const method = url.split('/').at(-1);
+    const body = JSON.parse(init.body);
+    calls.push({ method, body });
+    const sends = calls.filter((c) => c.method === 'sendMessage').length;
+    if (method === 'sendMessage' && sends === 3) {
+      return new Response(JSON.stringify({ ok: false, description: 'Bad Request: chat not found' }), { status: 400 });
+    }
+    return new Response(JSON.stringify({ ok: true, result: { message_id: nextId++ } }), { status: 200 });
+  };
+  const proposals = [1, 2, 3].map((n) => ({ ...proposal, n }));
+  await assert.rejects(
+    sendProposalBatch(7, { weekId: '2026-w43', weekOf: '2026-10-19', proposals }, { token: 'T', fetchImpl }),
+    /chat not found/
+  );
+  const deletes = calls.filter((c) => c.method === 'deleteMessage').map((c) => c.body);
+  assert.deepEqual(deletes, [
+    { chat_id: 7, message_id: 100 },
+    { chat_id: 7, message_id: 101 },
+  ]);
 });

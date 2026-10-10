@@ -170,8 +170,11 @@ Pure refactor; `generate-challenge.mjs` behaves exactly as before.
 
 ### Step 6: `--propose` mode (D3)
 
-- Read the `claude-api` skill before touching the API call. Keep the current model
-  and the `web_search_20250305` tool, with `max_uses` raised to 3.
+- Read the `claude-api` skill before touching the API call. Keep the current model,
+  raw `fetch` and the `web_search_20250305` tool, with `max_uses` raised to 3 for
+  proposals. `callClaude` reads every text block (web search splits answers by
+  citation), resumes a `pause_turn`, throws on a refusal, and parses a JSON array
+  as well as an object.
 - `scripts/lib/proposals.mjs`: `proposalsPath(weekId)`, `readProposals`,
   `appendBatch(file, proposals)` (continuous numbering), `markPicked`; pure where
   possible.
@@ -180,8 +183,10 @@ Pure refactor; `generate-challenge.mjs` behaves exactly as before.
     ranked best first.
   - Each is validated. Style violations get one rewrite round, batched in a single
     call. Duplicates of existing titles or of each other are dropped.
-  - Writes `proposals/<weekId>.json` and sends the header, one message per
-    proposal, then the footer (reply guide and "more" button).
+  - Sends the header, one message per proposal, then the footer (reply guide and
+    "more" button), and only then writes `proposals/<weekId>.json`. The send is
+    all or nothing: a failure partway deletes what was sent, so no live Pick
+    button ever points at an unsaved batch. Telegram 429s and 5xx are retried.
   - `--more` appends a batch for the same week and avoids every earlier title.
     `--dry-run` prints without writing or sending.
   - Fewer than 1 valid proposal exits non-zero.
@@ -286,8 +291,8 @@ Pure refactor; `generate-challenge.mjs` behaves exactly as before.
 | 2 | done | 77ce53e |
 | 3 | done | f684999 |
 | 4 | done | d2c5637 |
-| 5 | done | (this commit) |
-| 6 | pending | |
+| 5 | done | 47b61f2 |
+| 6 | done | (this commit) |
 | 7 | pending | |
 | 8 | pending | |
 | 9 | pending | |

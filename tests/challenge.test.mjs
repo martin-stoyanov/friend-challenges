@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   buildChallengeRecord,
   isDuplicateTitle,
+  normalizeEnums,
   toTikTokSearchUrl,
   upsertChallenge,
   validateChallenge,
@@ -30,6 +31,10 @@ test('validateChallenge names each missing field and rejects non-http links', ()
     'exampleUrl is not an http(s) URL: javascript:alert(1)',
   ]);
   assert.deepEqual(validateChallenge(null), ['is not a JSON object']);
+  assert.deepEqual(validateChallenge({ ...valid, category: 'friends', difficulty: 'Easy' }), [
+    'category is not one of friend, couple, both: friends',
+    'difficulty is not one of easy, medium, hard: Easy',
+  ]);
 });
 
 test('toTikTokSearchUrl keeps real search URLs and rewrites everything else', () => {
@@ -95,4 +100,12 @@ test('upsertChallenge inserts newest-first and replaces the same id', () => {
   const replaced = upsertChallenge(inserted, { id: '2026-w42', weekOf: '2026-10-12', title: 'D' });
   assert.deepEqual(replaced.map((c) => c.title), ['D', 'A', 'B']);
   assert.equal(list.length, 2, 'the input list is not mutated');
+});
+
+test('normalizeEnums lowercases and trims category and difficulty only', () => {
+  const result = normalizeEnums({ ...valid, category: ' Couple', difficulty: 'MEDIUM', title: 'The X Challenge' });
+  assert.deepEqual([result.category, result.difficulty, result.title], ['couple', 'medium', 'The X Challenge']);
+  assert.deepEqual(validateChallenge(result), []);
+  assert.equal(normalizeEnums(null), null);
+  assert.deepEqual(normalizeEnums([1]), [1]);
 });

@@ -18,6 +18,10 @@
  *   --category   Force a category: friend, couple, or both
  *   --week       Override week date (YYYY-MM-DD), defaults to next Monday
  *   --backfill   Generate challenges for all missing weeks since the last one
+ *   --propose [N] Generate N candidates (default 4) for the week, save them to
+ *                proposals/<weekId>.json and send them to Telegram for a pick
+ *                (needs TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID unless --dry-run)
+ *   --more       With --propose: add another batch to the week's proposals
  */
 
 import fs from 'fs';
@@ -29,11 +33,24 @@ import {
   loadStyleGuide,
   STYLE_GUIDE_RELATIVE_PATH,
 } from './copy-style.mjs';
-import { getMissingWeeks, getNextMonday, getWeekId } from './lib/dates.mjs';
+import { formatDateLocal, getMissingWeeks, getNextMonday, getWeekId } from './lib/dates.mjs';
+import {
+  appendBatch,
+  createProposals,
+  mergeRewrites,
+  proposalsPath,
+  proposedTitles,
+  readProposals,
+  selectProposals,
+  writeProposals,
+} from './lib/proposals.mjs';
+import { escapeHtml, sendMessage, sendProposalBatch } from './lib/telegram.mjs';
 import { callClaude, sleep } from './lib/claude.mjs';
 import {
   buildChallengeRecord,
+  CATEGORIES,
   isDuplicateTitle,
+  normalizeEnums,
   toTikTokSearchUrl,
   upsertChallenge,
   validateChallenge,
@@ -50,12 +67,38 @@ const categoryIdx = args.indexOf('--category');
 const forcedCategory = categoryIdx !== -1 ? args[categoryIdx + 1] : null;
 const weekIdx = args.indexOf('--week');
 const forcedWeek = weekIdx !== -1 ? args[weekIdx + 1] : null;
+const proposeIdx = args.indexOf('--propose');
+const propose = proposeIdx !== -1;
+const proposeCount = /^\d+$/.test(args[proposeIdx + 1] ?? '') ? Number(args[proposeIdx + 1]) : 4;
+const more = args.includes('--more');
 // Titles that were generated but rejected as low quality. They are no longer in
 // challenges.json, so the avoid-list can't see them and the model regenerates them.
 const rejectedTitles = (process.env.AVOID_TITLES || '')
   .split(',')
   .map(t => t.trim())
   .filter(Boolean);
+
+// Who a challenge is for, as the prompts describe it.
+const AUDIENCES = {
+  friend: 'friends (group of friends, NOT couples)',
+  couple: 'couples (romantic partners)',
+  both: 'both friends and couples',
+};
+
+// The JSON shape every challenge is requested in, shared by the single-week
+// prompt and the proposals prompt so the two never drift apart.
+const CHALLENGE_JSON_SPEC = `{
+  "title": "The [Name] Challenge",
+  "description": "4-5 sentences on how to actually play, written to the style guide in the system prompt. Sound like a friend who wants you to try this, not a manual: contractions, an aside, an opinion, a warning about the floor. Describe the mechanics in order so a reader who has never seen the challenge could run it, and introduce anything before you refer to it. Do not tell the reader it is funny. No em dashes, no 'the goal is to...', no three-item adjective closer, and no run of clipped four-word sentences. At least one sentence under 10 words and one over 15. Do not invent props, counts, or rules that are not part of the real challenge.",
+  "category": "friend" | "couple" | "both",
+  "difficulty": "easy" | "medium" | "hard",
+  "emoji": "a single relevant emoji",
+  "trendSource": "where this trend originated or is most popular (e.g. TikTok, Instagram Reels)",
+  "players": "number of players needed (e.g. '2', '2+', '3+')",
+  "timeEstimate": "estimated time including setup (e.g. '10-15 min', '20-30 min') — be realistic, factor in prep, explanation, and cleanup",
+  "exampleUrl": "a TikTok SEARCH URL for this challenge so viewers land on real videos. Format: https://www.tiktok.com/search?q=<query> where <query> is the words people actually use to find this challenge (URL-encode spaces as %20). Base the query on a hashtag or phrase you ACTUALLY saw in your web_search results — do NOT invent one. For example: https://www.tiktok.com/search?q=whisper%20challenge. Do NOT use tiktok.com/tag/ URLs — fabricated hashtags dead-end on an empty 'Couldn't find this hashtag' page.",
+  "reasoning": "1-2 sentences explaining why you chose this challenge and why it's trending"
+}`;
 
 function getSystemPrompt() {
   const today = new Date().toISOString().split('T')[0];
@@ -138,7 +181,7 @@ async function generateOneChallenge(weekOf, existing) {
   }
 
   const categoryHint = effectiveCategory 
-    ? `The challenge MUST be specifically for: ${effectiveCategory === 'friend' ? 'friends (group of friends, NOT couples)' : effectiveCategory === 'couple' ? 'couples (romantic partners)' : 'both friends and couples'}.`
+    ? `The challenge MUST be specifically for: ${AUDIENCES[effectiveCategory] ?? AUDIENCES.both}.`
     : 'The challenge can be for friends, couples, or both — pick whatever is trending hardest right now.';
 
   const today = new Date().toISOString().split('T')[0];
@@ -156,18 +199,7 @@ Search first, then give me a challenge that is genuinely trending in ${today.sub
 
 IMPORTANT: Your entire response must be ONLY a raw JSON object. No introduction, no explanation, no markdown, no code fences, no text before or after. Start your response with { and end with }.
 
-{
-  "title": "The [Name] Challenge",
-  "description": "4-5 sentences on how to actually play, written to the style guide in the system prompt. Sound like a friend who wants you to try this, not a manual: contractions, an aside, an opinion, a warning about the floor. Describe the mechanics in order so a reader who has never seen the challenge could run it, and introduce anything before you refer to it. Do not tell the reader it is funny. No em dashes, no 'the goal is to...', no three-item adjective closer, and no run of clipped four-word sentences. At least one sentence under 10 words and one over 15. Do not invent props, counts, or rules that are not part of the real challenge.",
-  "category": "friend" | "couple" | "both",
-  "difficulty": "easy" | "medium" | "hard",
-  "emoji": "a single relevant emoji",
-  "trendSource": "where this trend originated or is most popular (e.g. TikTok, Instagram Reels)",
-  "players": "number of players needed (e.g. '2', '2+', '3+')",
-  "timeEstimate": "estimated time including setup (e.g. '10-15 min', '20-30 min') — be realistic, factor in prep, explanation, and cleanup",
-  "exampleUrl": "a TikTok SEARCH URL for this challenge so viewers land on real videos. Format: https://www.tiktok.com/search?q=<query> where <query> is the words people actually use to find this challenge (URL-encode spaces as %20). Base the query on a hashtag or phrase you ACTUALLY saw in your web_search results — do NOT invent one. For example: https://www.tiktok.com/search?q=whisper%20challenge. Do NOT use tiktok.com/tag/ URLs — fabricated hashtags dead-end on an empty 'Couldn't find this hashtag' page.",
-  "reasoning": "1-2 sentences explaining why you chose this challenge and why it's trending"
-}`;
+${CHALLENGE_JSON_SPEC}`;
 
   console.log(`🤖 Generating challenge for week of ${weekOf} (${weekId})...\n`);
 
@@ -213,6 +245,7 @@ Keep the same challenge and rewrite the description so it passes. Respond with O
   }
 
   // Validate the result
+  result = normalizeEnums(result);
   const problems = validateChallenge(result);
   if (problems.length) {
     for (const problem of problems) console.error(`❌ AI response ${problem}`);
@@ -249,12 +282,207 @@ Keep the same challenge and rewrite the description so it passes. Respond with O
   return newChallenge;
 }
 
+function buildProposalsPrompt({ count, weekOf, existing, alreadyProposed }) {
+  const existingLines = existing.map(c => `- "${c.title}" — ${c.description.substring(0, 80)}...`);
+  const today = new Date().toISOString().split('T')[0];
+  const audienceHint = forcedCategory
+    ? `Every challenge MUST be specifically for: ${AUDIENCES[forcedCategory]}.`
+    : count > 1
+      ? 'Mix the audiences: include at least one challenge for couples (romantic partners) and at least one for a group of friends or for everyone.'
+      : 'The challenge can be for friends, couples, or both.';
+
+  return `Today is ${today}. Use the web_search tool to find ${count} different viral friend or couple challenges that are trending on social media (TikTok, Instagram, YouTube Shorts) RIGHT NOW — within the last few weeks. They are candidates for the week of ${weekOf}, and a person will pick one of them.
+
+IMPORTANT — These challenges have ALREADY been used, DO NOT suggest any of these or anything very similar:
+${existingLines.join('\n')}
+${rejectedTitles.length ? `
+These ideas were REJECTED as low quality. Do not suggest them or close variations:
+${rejectedTitles.map(t => `- "${t}"`).join('\n')}
+` : ''}${alreadyProposed.length ? `
+These were already proposed for this week and not picked. Suggest different ones:
+${alreadyProposed.map(t => `- "${t}"`).join('\n')}
+` : ''}
+${audienceHint}
+
+Make them genuinely different from each other: different mechanics, not variations on one idea. ${alreadyProposed.length ? 'Order them best first.' : 'Order them best first; the first one is published automatically if nobody picks.'}
+
+Search first, then give me challenges that are genuinely trending in ${today.substring(0, 7)} — not ones from a prior year.
+
+IMPORTANT: Your entire response must be ONLY a raw JSON array of ${count} objects. No introduction, no explanation, no markdown, no code fences, no text before or after. Start your response with [ and end with ].
+
+Each object in the array has this shape:
+${CHALLENGE_JSON_SPEC}`;
+}
+
+// One batched rewrite for every proposal whose description breaks the style
+// guide. mergeRewrites matches rewrites by title and keeps one only if it
+// breaks fewer rules than the draft did.
+async function fixProposalStyle(proposals) {
+  const failing = proposals
+    .map(proposal => ({ proposal, violations: checkDescription(proposal.description) }))
+    .filter(f => f.violations.length > 0);
+  if (failing.length === 0) return proposals;
+
+  console.warn(`✍️  ${failing.length} description(s) break ${STYLE_GUIDE_RELATIVE_PATH}; asking for rewrites...`);
+  const prompt = `Rewrite the description of each challenge below so it passes the style guide in the system prompt. Keep the same challenge, the same mechanics and the same facts; change only the wording.
+
+${failing.map((f, k) => `${k + 1}. ${f.proposal.title}
+Description: "${f.proposal.description}"
+It broke these rules:
+${formatViolations(f.violations)}`).join('\n\n')}
+
+Respond with ONLY a raw JSON array of ${failing.length} objects, each {"title": "<the title exactly as given>", "description": "..."}. Start your response with [ and end with ].`;
+
+  let rewrites;
+  try {
+    rewrites = await callClaude(prompt, getSystemPrompt(), { maxTokens: 4096, maxSearches: 0 });
+  } catch (err) {
+    console.warn(`   Rewrite failed (${err.message.split('\n')[0]}); keeping the drafts.`);
+    return proposals;
+  }
+
+  const { proposals: merged, stillFailing } = mergeRewrites(proposals, rewrites, checkDescription);
+  for (const { title, violations } of stillFailing) {
+    console.warn(`   "${title}" still breaks the guide; keeping the closer draft:`);
+    console.warn(formatViolations(violations));
+  }
+  return merged;
+}
+
+async function generateProposals({ count, weekOf, existing, alreadyProposed }) {
+  const prompt = buildProposalsPrompt({ count, weekOf, existing, alreadyProposed });
+  const maxAttempts = 3;
+  let drafts;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      drafts = await callClaude(prompt, getSystemPrompt(), { maxTokens: 6000, maxSearches: 3 });
+    } catch (err) {
+      if (attempt < maxAttempts && err.message.startsWith('Failed to parse JSON')) {
+        console.warn(`⚠️  JSON parse failed (attempt ${attempt}/${maxAttempts}), retrying...`);
+        continue;
+      }
+      throw err;
+    }
+    if (Array.isArray(drafts)) break;
+    if (attempt === maxAttempts) throw new Error('Claude did not return a JSON array of proposals.');
+    console.warn(`⚠️  Response was not a JSON array (attempt ${attempt}/${maxAttempts}), retrying...`);
+  }
+
+  // Validate, normalize links and drop repeats, keeping the model's ranking.
+  const { kept, dropped } = selectProposals(drafts, {
+    avoidTitles: [...existing.map(c => c.title), ...rejectedTitles, ...alreadyProposed],
+    count,
+  });
+  for (const { title, reason } of dropped) console.warn(`⚠️  Dropping "${title}": ${reason}`);
+
+  return fixProposalStyle(kept);
+}
+
+async function runPropose(existing) {
+  if (backfill) {
+    console.error('❌ --propose and --backfill do not combine');
+    process.exit(1);
+  }
+  if (proposeCount < 1 || proposeCount > 8) {
+    console.error(`❌ --propose takes 1 to 8 proposals, got ${proposeCount}`);
+    process.exit(1);
+  }
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!dryRun && (!process.env.TELEGRAM_BOT_TOKEN || !chatId)) {
+    console.error('❌ TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are required to send proposals (or use --dry-run)');
+    process.exit(1);
+  }
+
+  const weekOf = forcedWeek || getNextMonday();
+  const weekId = getWeekId(weekOf);
+  const current = readProposals(weekId);
+
+  if (more && !current) {
+    console.error(`❌ Nothing has been proposed for ${weekId} yet; run --propose first.`);
+    process.exit(1);
+  }
+  if (!more && current) {
+    console.log(`⏭️  ${weekId} already has proposals (${proposalsPath(weekId)}). Use --more for another batch.`);
+    return;
+  }
+  if (!more && existing.some(c => c.id === weekId)) {
+    console.log(`⏭️  ${weekId} already has a challenge; nothing to propose.`);
+    return;
+  }
+
+  console.log(`🤖 Proposing ${proposeCount} challenge(s) for week of ${weekOf} (${weekId})...\n`);
+  const drafts = await generateProposals({
+    count: proposeCount,
+    weekOf,
+    existing,
+    alreadyProposed: proposedTitles(current),
+  });
+  if (drafts.length === 0) {
+    console.error('😕 No usable proposals came back.');
+    if (dryRun) process.exit(1);
+    const week = `${escapeHtml(weekId)} (${escapeHtml(weekOf)})`;
+    await sendMessage(chatId, {
+      text: more
+        ? `😕 No new ideas for ${week} this time that weren't repeats. Pick one of the earlier ones, or tap more again later.`
+        : `😕 I couldn't put together usable ideas for ${week} this time. If nothing is picked by Sunday, the fallback generates one on its own.`,
+    });
+    // An empty "more" is an answer, not a failure; an empty Thursday batch is.
+    process.exit(more ? 0 : 1);
+  }
+
+  const { file, added } = appendBatch(current ?? createProposals(weekId, weekOf), drafts);
+  for (const p of added) {
+    console.log(`#${p.n} ${p.emoji} ${p.title} (${p.category}, ${p.difficulty})`);
+    console.log(`   📝 ${p.description}`);
+    console.log(`   🎬 ${p.exampleUrl}`);
+    if (p.reasoning) console.log(`   💡 ${p.reasoning}`);
+  }
+  console.log('');
+
+  if (dryRun) {
+    console.log(`🏃 Dry run — ${added.length} proposal(s) NOT saved or sent.`);
+    return;
+  }
+
+  // Send first, save after. sendProposalBatch is all or nothing (it deletes a
+  // half-sent batch), so a failed send leaves no file and no live buttons, and
+  // a rerun starts clean.
+  await sendProposalBatch(chatId, { weekId, weekOf, proposals: added, more, moreCount: proposeCount });
+  console.log(`📨 Sent ${added.length} proposal(s) to Telegram.`);
+  writeProposals(file);
+  console.log(`💾 Saved to ${proposalsPath(weekId)}`);
+}
+
 async function main() {
   console.log('🔥 Friend Challenges — AI Challenge Generator\n');
+
+  // weekOf is compared as a string everywhere (src/lib/challenges.ts), so a
+  // non-padded date would hide the week for most of the month.
+  if (forcedWeek) {
+    const date = new Date(`${forcedWeek}T00:00:00`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(forcedWeek) || formatDateLocal(date) !== forcedWeek) {
+      console.error(`❌ --week must be a real date as YYYY-MM-DD, got "${forcedWeek}"`);
+      process.exit(1);
+    }
+    if (date.getDay() !== 1) console.warn(`⚠️  --week ${forcedWeek} is not a Monday.`);
+  }
+  if (forcedCategory && !CATEGORIES.includes(forcedCategory)) {
+    console.error(`❌ --category must be one of ${CATEGORIES.join(', ')}, got "${forcedCategory}"`);
+    process.exit(1);
+  }
+  if (more && !propose) {
+    console.error('❌ --more only works with --propose');
+    process.exit(1);
+  }
 
   const existing = JSON.parse(fs.readFileSync(CHALLENGES_PATH, 'utf-8'));
   console.log(`📂 Loaded ${existing.length} existing challenges`);
   console.log(`🚫 Will avoid duplicating: ${existing.map(c => c.title).join(', ')}\n`);
+
+  if (propose) {
+    await runPropose(existing);
+    return;
+  }
 
   // Determine which weeks to generate
   let weeks;

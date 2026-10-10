@@ -30,15 +30,9 @@ export function escapeHtml(text) {
     .replace(/"/g, '&quot;');
 }
 
-/**
- * Calls one Bot API method and returns its `result`. Errors name the method and
- * Telegram's description, never the URL, which contains the token.
- */
-export async function telegramApi(method, body, {
-  token = process.env.TELEGRAM_BOT_TOKEN,
-  fetchImpl = fetch,
-} = {}) {
-  if (!token) throw new Error('TELEGRAM_BOT_TOKEN is not set');
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function callOnce(method, body, token, fetchImpl) {
   let response;
   try {
     response = await fetchImpl(`${API_BASE}/bot${token}/${method}`, {
@@ -53,13 +47,40 @@ export async function telegramApi(method, body, {
     const reason = err.name === 'TimeoutError'
       ? `no response in ${REQUEST_TIMEOUT_MS / 1000}s`
       : err.cause?.code ?? err.cause?.message ?? err.message;
-    throw new Error(`Telegram ${method} request failed: ${reason}`);
+    return { error: new Error(`Telegram ${method} request failed: ${reason}`), retryable: true };
   }
   const data = await response.json().catch(() => null);
-  if (!response.ok || !data?.ok) {
-    throw new Error(`Telegram ${method} failed (${response.status}): ${data?.description ?? 'no response body'}`);
+  if (response.ok && data?.ok) return { result: data.result };
+  return {
+    error: new Error(`Telegram ${method} failed (${response.status}): ${data?.description ?? 'no response body'}`),
+    retryable: response.status === 429 || response.status >= 500,
+    // Telegram says how long to back off on a 429.
+    retryAfterMs: (data?.parameters?.retry_after ?? 0) * 1000,
+  };
+}
+
+/**
+ * Calls one Bot API method and returns its `result`. Errors name the method and
+ * Telegram's description, never the URL, which contains the token.
+ *
+ * Network errors, 429s and 5xx are retried `retries` times (default 2), waiting
+ * as long as Telegram asks, up to 30s. The webhook passes retries: 0 because it
+ * has to answer Telegram within seconds.
+ */
+export async function telegramApi(method, body, {
+  token = process.env.TELEGRAM_BOT_TOKEN,
+  fetchImpl = fetch,
+  sleepImpl = sleep,
+  retries = 2,
+} = {}) {
+  if (!token) throw new Error('TELEGRAM_BOT_TOKEN is not set');
+  for (let attempt = 0; ; attempt++) {
+    const outcome = await callOnce(method, body, token, fetchImpl);
+    if (!outcome.error) return outcome.result;
+    const waitMs = outcome.retryAfterMs || 1_000 * 2 ** attempt;
+    if (!outcome.retryable || attempt >= retries || waitMs > 30_000) throw outcome.error;
+    await sleepImpl(waitMs);
   }
-  return data.result;
 }
 
 /** Sends `message` ({ text, reply_markup? }) as HTML with link previews off. */
@@ -137,10 +158,11 @@ export function formatProposal(proposal, weekId) {
   };
 }
 
-/** The first message of a batch. */
-export function formatHeader(weekId, weekOf, count) {
+/** The first message of a batch. A later batch for the same week says "more". */
+export function formatHeader(weekId, weekOf, count, { more = false } = {}) {
+  const noun = count === 1 ? 'idea' : 'ideas';
   return {
-    text: `🗓️ <b>${count} ${count === 1 ? 'idea' : 'ideas'} for the week of ${escapeHtml(formatWeekLabel(weekOf))}</b> (${escapeHtml(weekId)})`,
+    text: `🗓️ <b>${count} ${more ? 'more ' : ''}${noun} for the week of ${escapeHtml(formatWeekLabel(weekOf))}</b> (${escapeHtml(weekId)})`,
   };
 }
 
@@ -177,4 +199,33 @@ export function formatFooter(weekId, count) {
       inline_keyboard: [[{ text: `🔄 ${count} more`, callback_data: `more:${weekId}` }]],
     },
   };
+}
+
+/**
+ * Sends a batch in order: the header, each proposal, then the footer.
+ *
+ * All or nothing: if any message fails, the ones already sent are deleted
+ * (best effort) and the error is rethrown. A half-sent batch would leave live
+ * Pick buttons for a batch that was never saved, and a rerun would renumber,
+ * so an old "Pick #1" could publish a different challenge.
+ */
+export async function sendProposalBatch(chatId, { weekId, weekOf, proposals, more = false, moreCount }, options) {
+  const messages = [
+    formatHeader(weekId, weekOf, proposals.length, { more }),
+    ...proposals.map((proposal) => formatProposal(proposal, weekId)),
+    formatFooter(weekId, moreCount ?? proposals.length),
+  ];
+  const sentIds = [];
+  try {
+    for (const message of messages) {
+      const sent = await sendMessage(chatId, message, options);
+      sentIds.push(sent?.message_id);
+    }
+  } catch (err) {
+    for (const messageId of sentIds.filter(Boolean)) {
+      await telegramApi('deleteMessage', { chat_id: chatId, message_id: messageId }, { ...options, retries: 0 })
+        .catch(() => {});
+    }
+    throw err;
+  }
 }

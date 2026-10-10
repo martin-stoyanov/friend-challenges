@@ -7,6 +7,22 @@ export const REQUIRED_FIELDS = [
   'trendSource', 'players', 'timeEstimate', 'exampleUrl',
 ];
 
+// The site styles cards by these values (src/components/ChallengeCard.tsx) and
+// the Telegram reply parser accepts only these, so anything else is refused.
+export const CATEGORIES = ['friend', 'couple', 'both'];
+export const DIFFICULTIES = ['easy', 'medium', 'hard'];
+
+/**
+ * Lowercases and trims category and difficulty, which models sometimes
+ * capitalize ("Medium"), so a cosmetic slip doesn't cost the whole week.
+ * Returns a copy; anything that isn't an object is returned as is.
+ */
+export function normalizeEnums(result) {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) return result;
+  const lower = (value) => (typeof value === 'string' ? value.trim().toLowerCase() : value);
+  return { ...result, category: lower(result.category), difficulty: lower(result.difficulty) };
+}
+
 /**
  * Problems with a model-written challenge, as messages. Empty means it can be
  * used. Non-http(s) URLs are rejected so nothing like a javascript:/data: URL
@@ -19,6 +35,12 @@ export function validateChallenge(result) {
     .map((field) => `missing required field: ${field}`);
   if (result.exampleUrl && !/^https?:\/\//i.test(result.exampleUrl)) {
     problems.push(`exampleUrl is not an http(s) URL: ${result.exampleUrl}`);
+  }
+  if (result.category && !CATEGORIES.includes(result.category)) {
+    problems.push(`category is not one of ${CATEGORIES.join(', ')}: ${result.category}`);
+  }
+  if (result.difficulty && !DIFFICULTIES.includes(result.difficulty)) {
+    problems.push(`difficulty is not one of ${DIFFICULTIES.join(', ')}: ${result.difficulty}`);
   }
   return problems;
 }
@@ -43,7 +65,7 @@ export function toTikTokSearchUrl(url, title) {
   return build(titleQuery);
 }
 
-const normalizeTitle = (title) => title.toLowerCase().replace(/[^a-z]/g, '');
+export const normalizeTitle = (title) => String(title).toLowerCase().replace(/[^a-z]/g, '');
 
 /** Fuzzy title match: identical once normalized, or one contains the other. */
 export function isDuplicateTitle(title, existingTitles) {
