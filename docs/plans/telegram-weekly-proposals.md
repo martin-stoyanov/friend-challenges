@@ -279,8 +279,8 @@ Pure refactor; `generate-challenge.mjs` behaves exactly as before.
 
 | Step | Status | Commit |
 | --- | --- | --- |
-| 1 | done | (this commit) |
-| 2 | pending | |
+| 1 | done | fcf97fb |
+| 2 | done | (this commit) |
 | 3 | pending | |
 | 4 | pending | |
 | 5 | pending | |

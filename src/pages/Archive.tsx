@@ -5,6 +5,7 @@ import type { Challenge } from '@/types/Challenge';
 import ChallengeCard from '@/components/ChallengeCard';
 import { Button } from '@/components/ui/button';
 import { cn, sortByWeekDesc, sortByRatingDesc } from '@/lib/utils';
+import { getPublishedChallenges } from '@/lib/challenges';
 import { useAuth } from '@/contexts/auth-context';
 import { useProgress } from '@/contexts/progress-context';
 
@@ -37,9 +38,10 @@ export default function Archive() {
   const { myRatings, doneIds, stats } = useProgress();
   const canFilterByStatus = configured && Boolean(user);
 
+  const published = getPublishedChallenges(typedChallenges);
   const sorted = sortBy === 'rating'
-    ? sortByRatingDesc(typedChallenges, stats)
-    : sortByWeekDesc(typedChallenges);
+    ? sortByRatingDesc(published, stats)
+    : sortByWeekDesc(published);
 
   const byCategory = filter === 'all'
     ? sorted

@@ -5,27 +5,22 @@ import ChallengeCard from '@/components/ChallengeCard';
 import EmojiRain from '@/components/EmojiRain';
 import { Card, CardContent } from '@/components/ui/card';
 import { sortByWeekDesc } from '@/lib/utils';
+import { countDone, getPublishedChallenges } from '@/lib/challenges';
 import { useAuth } from '@/contexts/auth-context';
 import { useProgress } from '@/contexts/progress-context';
 
 const typedChallenges = challenges as Challenge[];
 
-function getCurrentChallenge(): Challenge {
-  return sortByWeekDesc(typedChallenges)[0];
-}
-
-function getRecentChallenges(): Challenge[] {
-  return sortByWeekDesc(typedChallenges).slice(1, 4);
-}
-
 export default function Home() {
-  const current = getCurrentChallenge();
-  const recent = getRecentChallenges();
+  const published = sortByWeekDesc(getPublishedChallenges(typedChallenges));
+  // Undefined only when no week has started yet, e.g. right after a restart.
+  const current: Challenge | undefined = published[0];
+  const recent = published.slice(1, 4);
 
   const { user } = useAuth();
   const { doneIds } = useProgress();
-  const doneCount = doneIds.size;
-  const totalCount = typedChallenges.length;
+  const doneCount = countDone(published, doneIds);
+  const totalCount = published.length;
 
   return (
     <div className="relative z-10">
@@ -65,9 +60,11 @@ export default function Home() {
       </section>
 
       {/* Featured Challenge */}
-      <section className="max-w-3xl mx-auto px-6 pb-12">
-        <ChallengeCard challenge={current} featured />
-      </section>
+      {current && (
+        <section className="max-w-3xl mx-auto px-6 pb-12">
+          <ChallengeCard challenge={current} featured />
+        </section>
+      )}
 
       {/* Recent Challenges */}
       {recent.length > 0 && (
