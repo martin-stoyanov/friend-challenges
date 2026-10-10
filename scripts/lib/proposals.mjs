@@ -37,7 +37,18 @@ export function proposalsPath(weekId, dir = PROPOSALS_DIR) {
 export function readProposals(weekId, dir = PROPOSALS_DIR) {
   const file = proposalsPath(weekId, dir);
   if (!fs.existsSync(file)) return null;
-  return JSON.parse(fs.readFileSync(file, 'utf-8'));
+  let parsed;
+  try {
+    parsed = JSON.parse(fs.readFileSync(file, 'utf-8'));
+  } catch (err) {
+    throw new Error(`${path.basename(file)} is not valid JSON: ${err.message}`);
+  }
+  // The filename is the source of truth; a file claiming another week would
+  // record a pick under the wrong id.
+  if (parsed?.weekId !== weekId) {
+    throw new Error(`${path.basename(file)} says it is for ${parsed?.weekId}, not ${weekId}`);
+  }
+  return parsed;
 }
 
 export function writeProposals(proposals, dir = PROPOSALS_DIR) {

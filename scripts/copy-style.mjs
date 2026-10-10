@@ -11,6 +11,7 @@
  *
  * Usage:
  *   node scripts/copy-style.mjs            # lint every description in challenges.json
+ *                                          # (Martin's own Telegram copy only warns)
  *   import { checkDescription } from './copy-style.mjs'
  */
 
@@ -22,6 +23,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
 const STYLE_GUIDE_PATH = path.join(ROOT, 'writing-style.md');
 const CHALLENGES_PATH = path.join(ROOT, 'src', 'data', 'challenges.json');
+const PROPOSALS_DIR = path.join(ROOT, 'proposals');
 
 /** Reads writing-style.md so callers can paste it into a prompt. */
 export function loadStyleGuide() {
@@ -143,24 +145,67 @@ export function formatViolations(violations) {
   return violations.map(v => `- [${v.rule}] ${v.message}`).join('\n');
 }
 
+/**
+ * Descriptions Martin wrote himself over Telegram, by week id. They are
+ * published exactly as written (docs/plans/telegram-weekly-proposals.md, D5),
+ * and the week's proposals file records them as pick.overrides.description.
+ */
+export function readHandWrittenDescriptions(dir = PROPOSALS_DIR) {
+  const byWeek = new Map();
+  if (!fs.existsSync(dir)) return byWeek;
+  for (const name of fs.readdirSync(dir).filter((n) => /^\d{4}-w\d{2}\.json$/.test(n))) {
+    // The week comes from the filename, never from inside the file, so a file
+    // can only speak for its own week.
+    const weekId = name.slice(0, -'.json'.length);
+    let file;
+    try {
+      file = JSON.parse(fs.readFileSync(path.join(dir, name), 'utf-8'));
+    } catch (err) {
+      throw new Error(`proposals/${name} is not valid JSON: ${err.message}`);
+    }
+    const description = file?.pick?.overrides?.description;
+    if (typeof description === 'string') byWeek.set(weekId, description);
+  }
+  return byWeek;
+}
+
+/**
+ * Lints every description. A hand-written one that breaks a rule is a warning,
+ * not a failure, so Martin's own copy never breaks the build; it only counts as
+ * hand-written while the card still carries exactly the text he sent.
+ * Returns { failed, warned }, each a list of { challenge, violations }.
+ */
+export function lintChallenges(challenges, handWritten = new Map()) {
+  const failed = [];
+  const warned = [];
+  for (const challenge of challenges) {
+    const violations = checkDescription(challenge.description);
+    if (!violations.length) continue;
+    const isHandWritten = handWritten.get(challenge.id) === challenge.description;
+    (isHandWritten ? warned : failed).push({ challenge, violations });
+  }
+  return { failed, warned };
+}
+
 // CLI: lint every description in challenges.json.
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
   const challenges = JSON.parse(fs.readFileSync(CHALLENGES_PATH, 'utf-8'));
-  let failed = 0;
+  const { failed, warned } = lintChallenges(challenges, readHandWrittenDescriptions());
 
-  for (const challenge of challenges) {
-    const violations = checkDescription(challenge.description);
-    if (violations.length) {
-      failed++;
-      console.log(`\n❌ ${challenge.id} — ${challenge.title}`);
-      console.log(formatViolations(violations));
-    }
+  for (const { challenge, violations } of warned) {
+    console.log(`\n⚠️  ${challenge.id} — ${challenge.title} (written by hand, published as written)`);
+    console.log(formatViolations(violations));
+  }
+  for (const { challenge, violations } of failed) {
+    console.log(`\n❌ ${challenge.id} — ${challenge.title}`);
+    console.log(formatViolations(violations));
   }
 
-  if (failed) {
-    console.log(`\n${failed}/${challenges.length} description(s) violate writing-style.md.`);
+  if (failed.length) {
+    console.log(`\n${failed.length}/${challenges.length} description(s) violate writing-style.md.`);
     process.exit(1);
   }
 
-  console.log(`✅ All ${challenges.length} descriptions pass writing-style.md checks.`);
+  const note = warned.length ? ` (${warned.length} hand-written with warnings)` : '';
+  console.log(`✅ All ${challenges.length} descriptions pass writing-style.md checks${note}.`);
 }

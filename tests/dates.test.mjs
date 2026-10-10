@@ -1,6 +1,6 @@
 import { test, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { addDays, getMissingWeeks, getNextMonday, getWeekId } from '../scripts/lib/dates.mjs';
+import { addDays, getCurrentMonday, getMissingWeeks, getNextMonday, getWeekId } from '../scripts/lib/dates.mjs';
 
 // Date math is local-time, so the DST tests pin a zone instead of trusting
 // whatever the machine running them is set to.
@@ -64,4 +64,11 @@ test('getMissingWeeks lists every Monday after the newest one, up to the next', 
   ]);
   assert.deepEqual(getMissingWeeks([{ weekOf: '2026-09-07' }], now), []);
   assert.deepEqual(getMissingWeeks([], now), ['2026-09-07']);
+});
+
+test('getCurrentMonday is the Monday that starts the week, Sunday included', () => {
+  assert.equal(getCurrentMonday(new Date('2026-10-12T00:30:00')), '2026-10-12'); // Monday
+  assert.equal(getCurrentMonday(new Date('2026-10-16T12:00:00')), '2026-10-12'); // Friday
+  assert.equal(getCurrentMonday(new Date('2026-10-18T23:59:00')), '2026-10-12'); // Sunday
+  assert.equal(getCurrentMonday(new Date('2027-01-01T12:00:00')), '2026-12-28'); // across a year
 });

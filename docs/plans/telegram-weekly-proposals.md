@@ -73,10 +73,17 @@ link: https://…                 players:, time:
   published exactly as written. `checkDescription` still runs, and any violations
   come back in the confirmation message with "reply again to replace it". The bot
   never rewrites his copy. A `link:` he sends is kept as given if it is http(s); only
-  generated links go through `toTikTokSearchUrl`.
+  generated links go through `toTikTokSearchUrl`. `npm run lint:copy` reports a
+  description he wrote (recorded as `pick.overrides.description` in the week's
+  proposals file) as a warning, not a failure, so his own copy never breaks the
+  build.
 - **D6 — Apply is an upsert keyed by week id.** A later reply for the same week
-  replaces the pick. Before Monday that is invisible. After Monday it edits the live
-  card, and existing ratings stay attached to the id.
+  replaces the pick. Picking the same number again keeps Martin's earlier field
+  changes and layers the new ones on top, so replying to a confirmation with a new
+  description doesn't undo a title change. A different number starts fresh. Before
+  Monday a change is invisible. During the live week it edits the live card, and
+  existing ratings stay attached to the id. Earlier weeks are archived and refuse
+  picks, because old Pick buttons stay in the chat forever.
 - **D7 — The fallback runs Sunday 12:00 UTC and proposals Thursday 12:00 UTC.** This
   repo's Monday 09:00 cron has started between 14:53 and 18:05 UTC, so schedules
   leave a wide margin. The fallback publishes #1. With no proposals file it runs the
@@ -196,19 +203,31 @@ Pure refactor; `generate-challenge.mjs` behaves exactly as before.
 ### Step 7: `apply-choice.mjs` and the fallback (D5, D6, D7)
 
 - `scripts/apply-choice.mjs`:
-  - Input comes from `$GITHUB_EVENT_PATH` (`client_payload`) or from CLI flags
-    (`--week --pick --description --title …`) for manual runs.
+  - Input comes from `$GITHUB_EVENT_PATH`: a `repository_dispatch` `client_payload`
+    from the webhook, or `workflow_dispatch` `inputs` (`week_id`, `pick`,
+    `description`). Or it comes from CLI flags (`--pick --week-id --description
+    --title …`). No payload value ever passes through a shell.
   - Resolves the proposal and applies overrides verbatim. It upserts into
-    `challenges.json`, marks the proposals file picked, and runs `checkDescription`.
-  - Sends a confirmation listing any lint warnings.
-  - An unknown week or number sends an error message and exits non-zero.
+    `challenges.json`, marks the proposals file picked, and runs
+    `checkDescription`.
+  - `--message-out <file>` writes the confirmation instead of sending it, so the
+    workflow sends it only after the push. The confirmation echoes what was
+    applied, lists lint warnings, and ends with the proposal's tag line, so
+    replying to it changes the same pick.
+  - A bad pick from Telegram (unknown week or number) is answered in the chat and
+    exits 0; a bad pick from the CLI exits 1.
+  - Overrides are length-capped so a confirmation always fits in one message.
 - `--fallback`: for the upcoming week, does nothing if the week is already in
-  `challenges.json`. Otherwise it applies #1 and says so. With no proposals file it
-  writes `generate=true` to `$GITHUB_OUTPUT` and exits 0.
-- Pure core in `scripts/lib/apply.mjs` (`buildChallenge(proposal, overrides,
-  weekId, weekOf)`, `fallbackAction(...)`).
+  `challenges.json`. Otherwise it applies the recorded pick, or #1, and says so.
+  With no proposals file it writes `generate=true` to `$GITHUB_OUTPUT` and exits 0.
+- Pure core in `scripts/lib/apply.mjs`: `parsePickEvent`, `validateOverrides`,
+  `applyPick`, `fallbackAction` and `changedFields`. The confirmation format is
+  `formatConfirmation` in `scripts/lib/telegram.mjs`. `telegram-notify.mjs
+  --file` sends a prepared message.
+- `scripts/copy-style.mjs`: hand-written descriptions warn instead of fail (D5).
 - `tests/apply.test.mjs`: overrides win, the user link is kept as given, a
-  generated link is normalized, upsert replaces, all fallback branches.
+  generated link is normalized, upsert replaces, all fallback branches, payload
+  validation, confirmation contents and length.
 
 ### Step 8: Netlify webhook (D4, D8, D9)
 
@@ -292,8 +311,8 @@ Pure refactor; `generate-challenge.mjs` behaves exactly as before.
 | 3 | done | f684999 |
 | 4 | done | d2c5637 |
 | 5 | done | 47b61f2 |
-| 6 | done | (this commit) |
-| 7 | pending | |
+| 6 | done | 334d844 |
+| 7 | done | (this commit) |
 | 8 | pending | |
 | 9 | pending | |
 | 10 | pending | |

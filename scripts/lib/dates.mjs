@@ -20,6 +20,13 @@ export function getNextMonday(now = new Date()) {
   return formatDateLocal(nextMonday);
 }
 
+/** The Monday that starts the week `now` is in: the live week's weekOf. */
+export function getCurrentMonday(now = new Date()) {
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  return formatDateLocal(monday);
+}
+
 export function addDays(dateStr, days) {
   const date = new Date(dateStr + 'T00:00:00');
   date.setDate(date.getDate() + days);

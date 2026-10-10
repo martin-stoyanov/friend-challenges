@@ -16,6 +16,14 @@ export const MAX_MESSAGE_LENGTH = 4096;
 
 const REQUEST_TIMEOUT_MS = 15_000;
 
+// How much of the description, once escaped, a confirmation echoes back, and
+// how many style warnings it lists at what length. Together with the capped
+// fields (scripts/lib/apply.mjs) they keep a confirmation under
+// MAX_MESSAGE_LENGTH; formatConfirmation shortens the echo further if not.
+const CONFIRMATION_ECHO_LIMIT = 1_500;
+const MAX_WARNING_LINES = 5;
+const WARNING_LINE_LIMIT = 150;
+
 const CATEGORY_LABELS = {
   friend: '👫 friends',
   couple: '💕 couples',
@@ -183,7 +191,7 @@ export function replyGuideText() {
     '<code>time: 10-15 min</code>',
     '<code>link: https://…</code>',
     '',
-    'Your text is used exactly as written. Send another reply any time before Monday to change the pick.',
+    'Your text is used exactly as written. Send another reply any time before Monday to change the pick; picking the same number again keeps your earlier changes.',
   ].join('\n');
 }
 
@@ -228,4 +236,85 @@ export async function sendProposalBatch(chatId, { weekId, weekOf, proposals, mor
     }
     throw err;
   }
+}
+
+/**
+ * Escapes `raw` and cuts it to at most `limit` characters of escaped text, by
+ * whole graphemes, adding `suffix` when it had to cut. Never splits an emoji or
+ * an entity.
+ */
+function clipEscaped(raw, limit, suffix = '…') {
+  const escaped = escapeHtml(raw);
+  if (escaped.length <= limit) return escaped;
+  let kept = '';
+  for (const { segment } of new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(raw)) {
+    const next = kept + escapeHtml(segment);
+    if (next.length + suffix.length > limit) break;
+    kept = next;
+  }
+  return `${kept.trimEnd()}${suffix}`;
+}
+
+/**
+ * Confirmation of a pick, sent after the commit is pushed. It echoes what was
+ * applied, so a misread reply shows up at once, and ends with the same tag line
+ * as the proposal, so replying to it changes the same pick.
+ *
+ * `violations` are style-check results for the description. Martin's own text
+ * is published as written (plan D5), so they are reported, not fixed. Every
+ * part that can grow is clipped, so the message always fits in one Telegram
+ * message whatever passed validation.
+ */
+export function formatConfirmation({ challenge, n, weekId, changed = [], violations = [], fallback = false, live = false }) {
+  const week = escapeHtml(formatWeekLabel(challenge.weekOf));
+  const heading = fallback
+    ? `⏰ <b>No pick by Sunday, so #${n} is set for the week of ${week}</b>`
+    : `✅ <b>#${n} is set for the week of ${week}</b>`;
+  const meta = [
+    CATEGORY_LABELS[challenge.category] ?? challenge.category,
+    challenge.difficulty,
+    `${challenge.players} players`,
+    challenge.timeEstimate,
+  ].map(escapeHtml).join(' · ');
+  // Some rule messages quote a whole sentence back; show a few, each short.
+  const warnings = [...new Set(violations.map((v) => v.message))]
+    .slice(0, MAX_WARNING_LINES)
+    .map((message) => `• ${clipEscaped(message, WARNING_LINE_LIMIT)}`);
+
+  const build = (echoLimit) => {
+    const lines = [
+      heading,
+      `<b>${escapeHtml(`${challenge.emoji} ${challenge.title}`)}</b>`,
+      meta,
+      '',
+      // The echo is for reading back; the card itself keeps every word.
+      clipEscaped(challenge.description, echoLimit, '… (shortened here; the card has all of it)'),
+      '',
+    ];
+    if (changed.length) lines.push(`Your changes: ${escapeHtml(changed.join(', '))}`);
+    if (warnings.length) {
+      lines.push(
+        '⚠️ The style check flagged the description. It is published as written; reply with a new version to replace it.',
+        ...warnings
+      );
+    }
+    lines.push(
+      live
+        ? 'This week is already live, so the site changes as soon as it redeploys.'
+        : `It goes live on ${week}. Reply to this message to change it before then.`,
+      proposalTag(n, weekId)
+    );
+    return lines.join('\n');
+  };
+
+  let text = build(CONFIRMATION_ECHO_LIMIT);
+  if (text.length > MAX_MESSAGE_LENGTH) {
+    text = build(Math.max(200, CONFIRMATION_ECHO_LIMIT - (text.length - MAX_MESSAGE_LENGTH) - 50));
+  }
+  return { text };
+}
+
+/** A one-off notice: an error answer, an acknowledgement. Plain text, escaped. */
+export function formatNotice(text) {
+  return { text: escapeHtml(text) };
 }

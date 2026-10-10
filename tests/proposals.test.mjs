@@ -79,6 +79,18 @@ test('files round-trip through disk, and a missing week reads as null', () => {
   }
 });
 
+test('readProposals trusts the filename and names a broken file', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'proposals-'));
+  try {
+    fs.writeFileSync(path.join(dir, '2026-w43.json'), JSON.stringify({ weekId: '2026-w40', weekOf: '2026-09-28', proposals: [], pick: null }));
+    assert.throws(() => readProposals('2026-w43', dir), /2026-w43\.json says it is for 2026-w40, not 2026-w43/);
+    fs.writeFileSync(path.join(dir, '2026-w44.json'), '{ not json');
+    assert.throws(() => readProposals('2026-w44', dir), /2026-w44\.json is not valid JSON/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('proposalsPath refuses anything but a whole week id, so a payload cannot escape the folder', () => {
   for (const bad of [
     '../src/data/challenges',
