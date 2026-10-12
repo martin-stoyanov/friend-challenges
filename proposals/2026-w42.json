@@ -1,0 +1,67 @@
+{
+  "weekId": "2026-w42",
+  "weekOf": "2026-10-12",
+  "proposals": [
+    {
+      "n": 1,
+      "batch": 1,
+      "createdAt": "2026-10-12T21:09:28.548Z",
+      "title": "The Guess the Number Challenge",
+      "description": "One person picks a number and keeps it secret. Everyone else takes turns asking yes-or-no questions, but not \"is it higher than 50?\" Think \"would this number fit on a parking ticket?\" or \"is this the kind of number someone would lie about their age to?\" You get one real guess each, so ask carefully. Whoever nails it first wins the round, then you swap who's holding the secret.",
+      "category": "both",
+      "difficulty": "easy",
+      "emoji": "🔢",
+      "trendSource": "TikTok",
+      "players": "2+",
+      "timeEstimate": "10-15 min",
+      "exampleUrl": "https://www.tiktok.com/search?q=guess%20the%20number%20challenge%20friends",
+      "reasoning": "The #guessnumber challenge has been all over TikTok's FYP in September-October 2026, with creators and friend groups posting rounds under #guessthenumber and #numbergame. It's a zero-prop game that reads well on camera because the guessers' logic — and confusion — does all the work."
+    },
+    {
+      "n": 2,
+      "batch": 1,
+      "createdAt": "2026-10-12T21:09:28.548Z",
+      "title": "The No-Hands Challenge",
+      "description": "Pick something from the kitchen: a snack, a piece of fruit, a cup of something. The two of you have to move it from one side of the table to the other without using your hands at all. You can pin it between your chins, your shoulders, your elbows, whatever works. If it drops, you start over from that spot. The catch: you're not allowed to plan your technique out loud before you try it.",
+      "category": "couple",
+      "difficulty": "medium",
+      "emoji": "🙅",
+      "trendSource": "TikTok",
+      "players": "2",
+      "timeEstimate": "15-20 min",
+      "exampleUrl": "https://www.tiktok.com/search?q=no%20hands%20challenge%20couple",
+      "reasoning": "The #nohandchallenge has been pulling big couple engagement on TikTok in late September 2026, with videos showing the coordination breakdowns that make it genuinely watchable. It's physically simple but produces footage that's hard to predict."
+    },
+    {
+      "n": 3,
+      "batch": 1,
+      "createdAt": "2026-10-12T21:09:28.548Z",
+      "title": "The Got-It Challenge",
+      "description": "Sit in a circle, each person holding a pen. Someone starts by tapping the table and saying \"got it,\" and the group has to figure out the secret rule governing when you're allowed to say it. The rule involves something you're doing or holding when you speak, not what you say. Once you think you've cracked it, you say \"got it\" on your turn and wait to see if the group confirms or rejects you. Anyone who thinks they know the rule has to demonstrate it, not explain it.",
+      "category": "friend",
+      "difficulty": "medium",
+      "emoji": "✒️",
+      "trendSource": "TikTok",
+      "players": "3+",
+      "timeEstimate": "15-20 min",
+      "exampleUrl": "https://www.tiktok.com/search?q=got%20it%20challenge%20friends",
+      "reasoning": "The #gotitchallenge has been circulating in friend-group TikToks in October 2026, racking up thousands of likes in clips where the moment someone finally \"gets it\" — and the chaos of people who are sure they do but don't — drives all the replay value."
+    },
+    {
+      "n": 4,
+      "batch": 1,
+      "createdAt": "2026-10-12T21:09:28.548Z",
+      "title": "The Tone Challenge Game",
+      "description": "Pull up any line of dialogue, something from a show or a random sentence generator, and read it to your group. Each person has to deliver that exact same line back in a tone the group assigns them: deadpan, furious, deeply in love, terrified. No changing the words. You go around the circle once per line before moving to the next one, and whoever loses it mid-delivery sits out the next round.",
+      "category": "both",
+      "difficulty": "easy",
+      "emoji": "🎭",
+      "trendSource": "TikTok",
+      "players": "2+",
+      "timeEstimate": "10-15 min",
+      "exampleUrl": "https://www.tiktok.com/search?q=tone%20challenge%20game%20friends%20tiktok",
+      "reasoning": "The tone challenge game was flagged as a rising TikTok group trend in mid-2026 and has continued building through October, with the format working well in short-form video because each delivery is a self-contained moment that stands alone in a clip."
+    }
+  ],
+  "pick": null
+}
