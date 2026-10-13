@@ -63,5 +63,12 @@
       "reasoning": "The tone challenge game was flagged as a rising TikTok group trend in mid-2026 and has continued building through October, with the format working well in short-form video because each delivery is a self-contained moment that stands alone in a clip."
     }
   ],
-  "pick": null
+  "pick": {
+    "n": 2,
+    "source": "reply",
+    "overrides": {
+      "description": "Pick something from the kitchen: a snack, a piece of fruit, cup, etc. The two of you have to move it from one side of the table to the other without using your hands at all.. If it drops, you start over from that spot. The catch: you're not allowed to plan your technique out loud before you try it."
+    },
+    "at": "2026-10-13T21:39:22.030Z"
+  }
 }
