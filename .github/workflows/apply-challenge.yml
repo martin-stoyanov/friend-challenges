@@ -30,9 +30,23 @@ on:
         description: 'Where the pick came from (set by the Telegram webhook)'
         type: string
         default: manual
+      message:
+        description: 'A free-form message for Claude to read (set by the Telegram webhook)'
+        type: string
+        default: ''
+      reply_n:
+        description: 'The proposal the message replied to (set by the Telegram webhook)'
+        type: string
+        default: ''
+      reply_text:
+        description: 'The text of the message it replied to (set by the Telegram webhook)'
+        type: string
+        default: ''
 
 permissions:
   contents: write
+  # An interpreted "more" starts propose-challenges.yml (workflow_dispatch).
+  actions: write
 
 # No concurrency group: GitHub cancels a waiting run when another queues behind
 # it, which would silently drop a pick. Concurrent picks are handled by

@@ -130,7 +130,7 @@ Telegram → Netlify function (scripts/lib/reply.mjs)
 ### Step 13: Routing prose to Claude (D12, D13)
 
 - `scripts/lib/reply.mjs`: `parseUpdate` returns
-  `{ type: 'freeform', weekId, replyN, text }` for prose:
+  `{ type: 'freeform', weekId, replyN, replyText, text }` for prose:
   - a reply with text;
   - a number followed by text;
   - anything the format can't read.
@@ -140,9 +140,10 @@ Telegram → Netlify function (scripts/lib/reply.mjs)
 - `netlify/functions/telegram-webhook.mjs`: `freeform` starts
   `apply-challenge.yml` with `week_id`, `message`, `reply_n` (empty when none),
   `reply_text` (the replied-to message's text, capped at 1500 characters, empty
-  when none) and `source=message`, then acknowledges with 👍. `readTag` also
-  reads the question tag (`? · <week>`), and any reply to a question is prose,
-  even a bare number.
+  when none) and `source=message`, then acknowledges with 👍. A new
+  `readQuestionTag` reads the question tag (`? · <week>`, made by `questionTag`),
+  and any reply to a question is prose, even a bare number. A body with any
+  non-field line is prose, even if another of its lines is a malformed field.
 - `.github/workflows/apply-challenge.yml`: new `message`, `reply_n` and
   `reply_text` inputs, and `actions: write` for D17.
 - Tests: the parser cases that change, the webhook payload for prose, and
@@ -197,8 +198,8 @@ Telegram → Netlify function (scripts/lib/reply.mjs)
 | Step | Status | Commit |
 | --- | --- | --- |
 | 11 | done | 7b6eb6b |
-| 12 | done | (this commit) |
-| 13 | pending | |
+| 12 | done | 847dd5f |
+| 13 | done | (this commit) |
 | 14 | pending | |
 | 15 | pending | |
 | 16 | pending | |

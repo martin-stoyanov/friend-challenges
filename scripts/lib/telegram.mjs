@@ -106,6 +106,15 @@ export function proposalTag(n, weekId) {
   return `#${n} · ${weekId}`;
 }
 
+/**
+ * The tag line that ends a clarifying question from the bot. Any reply to it
+ * goes to Claude, so the answer is read together with the question
+ * (docs/plans/telegram-freeform-replies.md, D15).
+ */
+export function questionTag(weekId) {
+  return `? · ${weekId}`;
+}
+
 /** "Mon 19 Oct" for a YYYY-MM-DD weekOf, read as a local date. */
 export function formatWeekLabel(weekOf) {
   return new Date(`${weekOf}T00:00:00`).toLocaleDateString('en-GB', {
@@ -237,6 +246,16 @@ export async function sendProposalBatch(chatId, { weekId, weekOf, proposals, mor
     }
     throw err;
   }
+}
+
+/** Cuts plain text to at most `max` characters by whole graphemes, so no emoji is split. */
+export function clipGraphemes(value, max) {
+  let out = '';
+  for (const { segment } of new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(value)) {
+    if (out.length + segment.length > max) break;
+    out += segment;
+  }
+  return out;
 }
 
 /**

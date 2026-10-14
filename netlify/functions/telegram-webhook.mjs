@@ -7,7 +7,8 @@
  *
  * It keeps no state and never touches the repo (plan D4). It checks who sent
  * the update (D9), reads it with scripts/lib/reply.mjs, and starts a workflow
- * through workflow_dispatch (D8): apply-challenge.yml for a pick,
+ * through workflow_dispatch (D8): apply-challenge.yml for a pick or for prose
+ * for Claude to read (docs/plans/telegram-freeform-replies.md, D12), and
  * propose-challenges.yml for "more". That needs a token with Actions: write
  * only, which can't change the repo itself. The workflows apply the pick and
  * send the confirmation. Martin gets a quick acknowledgement here: a toast for
@@ -25,7 +26,7 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { getNextMonday, getWeekId } from '../../scripts/lib/dates.mjs';
 import { parseUpdate } from '../../scripts/lib/reply.mjs';
-import { formatNotice, replyGuideText, sendMessage, telegramApi } from '../../scripts/lib/telegram.mjs';
+import { clipGraphemes, formatNotice, replyGuideText, sendMessage, telegramApi } from '../../scripts/lib/telegram.mjs';
 
 const REQUIRED_ENV = [
   'TELEGRAM_BOT_TOKEN',
@@ -37,6 +38,11 @@ const REQUIRED_ENV = [
 // A Netlify function has about ten seconds. The dispatch gets one slice, then
 // the acknowledgements run side by side in another.
 const CALL_TIMEOUT_MS = 4_000;
+// How much of the message he replied to travels with prose (as context for
+// Claude). The start holds what matters: a proposal's title and description,
+// or the bot's question.
+const REPLY_TEXT_LIMIT = 1_500;
+
 
 // Hashing first gives both sides the same length, which timingSafeEqual needs,
 // without leaking the secret's length through an early return.
@@ -163,17 +169,26 @@ export function createHandler({ env, fetchImpl = fetch, now = () => new Date(), 
         return ok();
 
       case 'pick':
+      case 'freeform':
       case 'more': {
-        const isPick = result.type === 'pick';
         // workflow_dispatch inputs are all strings; apply-choice.mjs parses them.
-        const [workflow, inputs] = isPick
+        // Prose goes to the apply workflow too, where Claude reads it (D12).
+        const [workflow, inputs] = result.type === 'pick'
           ? ['apply-challenge.yml', {
             week_id: result.weekId,
             pick: String(result.n),
             overrides: JSON.stringify(result.overrides),
             source: result.source,
           }]
-          : ['propose-challenges.yml', { mode: 'more', week_id: result.weekId }];
+          : result.type === 'freeform'
+            ? ['apply-challenge.yml', {
+              week_id: result.weekId,
+              message: result.text,
+              reply_n: result.replyN ? String(result.replyN) : '',
+              reply_text: clipGraphemes(result.replyText ?? '', REPLY_TEXT_LIMIT),
+              source: 'message',
+            }]
+            : ['propose-challenges.yml', { mode: 'more', week_id: result.weekId }];
         try {
           await dispatch(env, fetchImpl, workflow, inputs, timeoutMs);
         } catch (err) {
@@ -185,9 +200,10 @@ export function createHandler({ env, fetchImpl = fetch, now = () => new Date(), 
           return ok();
         }
         await Promise.all([
+          // Only taps have a toast (pick or more); prose gets the 👍.
           toast(
             result.callbackQueryId,
-            isPick ? `Picking #${result.n}… a confirmation follows.` : 'Finding more ideas… this takes a minute or two.'
+            result.type === 'more' ? 'Finding more ideas… this takes a minute or two.' : `Picking #${result.n}… a confirmation follows.`
           ),
           thumbsUp(messageId),
         ]);

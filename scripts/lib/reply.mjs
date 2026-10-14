@@ -4,15 +4,21 @@
  * result, and apply-choice.mjs checks the week and number against the
  * proposals file.
  *
+ * Messages in the exact format are read here. Anything with free prose comes
+ * back as `freeform` and goes to Claude in the apply workflow
+ * (docs/plans/telegram-freeform-replies.md, D13): a reply with text, a number
+ * followed by text, a reply to one of the bot's questions, or anything else
+ * the format can't read.
+ *
  * Which proposal a reply means comes from, in order (plan D4):
  *   1. a button's callback data: "pick:<weekId>:<n>" or "more:<weekId>";
  *   2. the "#<n> · <weekId>" tag line of the message being replied to;
  *   3. a leading number for the upcoming week: "2" or "#2" alone on the first
  *      line, or "2:", "2." or "2)" before text.
  *
- * Everything after that is the reply body. Lines like "title: …" override a
- * field, and whatever is left is the description, used exactly as written
- * (plan D5).
+ * Everything after that is the reply body. If it is only lines like
+ * "title: …", they override fields here. If it has any other text, the whole
+ * message is prose and goes to Claude (below).
  */
 
 import { CATEGORIES, DIFFICULTIES } from './challenge.mjs';
@@ -23,9 +29,11 @@ const MORE_DATA = new RegExp(`^more:(${WEEK_ID})$`);
 // The tag line formatProposal ends every proposal with (scripts/lib/telegram.mjs).
 // Only the last line counts, so a tag-shaped line inside a description can't win.
 const TAG_LINE = new RegExp(`(?:^|\\n)#(\\d{1,3}) · (${WEEK_ID})\\s*$`);
+// The tag line that ends a clarifying question (questionTag in telegram.mjs).
+const QUESTION_TAG_LINE = new RegExp(`(?:^|\\n)\\? · (${WEEK_ID})\\s*$`);
 // "2", "#2", "2." or "2:" ending its line, or "2:" / "2." / "2)" before text.
 // "2 people face each other" is not a pick: that reads as a description.
-const LEADING_NUMBER = /^#?(\d{1,3})(?:[.:)]|(?=\r?\n)|$)/;
+const LEADING_NUMBER = /^#?(\d{1,3})(?:[.:)]|(?=[ \t]*\r?\n)|$)/;
 const ONLY_NUMBER = /^#?(\d{1,3})[.:)]?$/;
 // Telegram content a person sends that has no text. Anything else without text
 // is a service message (a pin, say) and gets no answer.
@@ -106,6 +114,33 @@ export function readTag(text) {
   return match ? { n: Number(match[1]), weekId: match[2] } : null;
 }
 
+/** The week a clarifying question from the bot is about, or null. */
+export function readQuestionTag(text) {
+  const match = (text ?? '').match(QUESTION_TAG_LINE);
+  return match ? match[1] : null;
+}
+
+/**
+ * Prose for Claude. `text` is his message exactly as sent; `replyText` is the
+ * message he replied to, if any.
+ */
+function freeform(weekId, replyN, message) {
+  return {
+    type: 'freeform',
+    weekId,
+    replyN,
+    replyText: message.reply_to_message?.text ?? null,
+    text: message.text,
+  };
+}
+
+/**
+ * True when a reply body has any line that isn't a field line: then it's prose
+ * for Claude, even if one of its lines looks like a malformed field
+ * ("Difficulty: the hard part is not laughing").
+ */
+const hasProse = (body) => body.split(/\r?\n/).some((line) => line.trim() && !FIELD_LINE.test(line));
+
 function parseCallback(data) {
   const pickMatch = (data ?? '').match(PICK_DATA);
   if (pickMatch) return pick(pickMatch[1], Number(pickMatch[2]), '', 'button');
@@ -125,6 +160,11 @@ function parseText(message, upcomingWeekId) {
     return { type: 'invalid', reason: `I don't know /${name}.` };
   }
 
+  // A reply to one of the bot's questions is always an answer for Claude, even
+  // a bare number, so it is read together with the question.
+  const questionWeek = readQuestionTag(message.reply_to_message?.text);
+  if (questionWeek) return freeform(questionWeek, null, message);
+
   // A reply to a proposal (or to a confirmation, which carries the same tag).
   const tag = readTag(message.reply_to_message?.text);
   if (tag) {
@@ -132,25 +172,28 @@ function parseText(message, upcomingWeekId) {
     // the lines after it are the body. Otherwise the whole text is the body.
     const [firstLine, ...rest] = text.split(/\r?\n/);
     const only = firstLine.trim().match(ONLY_NUMBER);
-    if (only) return pick(tag.weekId, Number(only[1]), rest.join('\n'), 'reply');
-    return pick(tag.weekId, tag.n, text, 'reply');
+    const [n, body] = only ? [Number(only[1]), rest.join('\n')] : [tag.n, text];
+    return hasProse(body) ? freeform(tag.weekId, tag.n, message) : pick(tag.weekId, n, body, 'reply');
   }
 
   const leading = text.match(LEADING_NUMBER);
   if (leading) {
-    return pick(upcomingWeekId, Number(leading[1]), text.slice(leading[0].length), 'number');
+    const body = text.slice(leading[0].length);
+    return hasProse(body)
+      ? freeform(upcomingWeekId, null, message)
+      : pick(upcomingWeekId, Number(leading[1]), body, 'number');
   }
 
-  return {
-    type: 'invalid',
-    reason: 'Start with the proposal number, or reply to the proposal you want.',
-  };
+  // No number and no proposal to reply to: Claude works out what he means.
+  return freeform(upcomingWeekId, null, message);
 }
 
 /**
  * Reads one Telegram update. Always returns an object with `type`:
- *   pick    { weekId, n, overrides, source: 'button' | 'reply' | 'number' }
- *   more    { weekId }
+ *   pick     { weekId, n, overrides, source: 'button' | 'reply' | 'number' }
+ *            (exact format only: no description in it)
+ *   freeform { weekId, replyN, replyText, text }  prose for Claude
+ *   more     { weekId }
  *   help
  *   invalid { reason }  something Martin sent that needs an answer
  *   ignore  { reason }  nothing to answer (edits, other update kinds, bots)

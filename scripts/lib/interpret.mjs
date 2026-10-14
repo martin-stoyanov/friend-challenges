@@ -17,6 +17,7 @@
 import { CATEGORIES, DIFFICULTIES } from './challenge.mjs';
 import { validateOverrides } from './apply.mjs';
 import { findProposal } from './proposals.mjs';
+import { clipGraphemes as clip } from './telegram.mjs';
 
 const MAX_HINT_LENGTH = 200;
 const MAX_QUESTION_LENGTH = 300;
@@ -144,17 +145,6 @@ export function buildInterpretRequest({ message, replyN = null, replyText = null
 }
 
 const clarify = (question) => ({ type: 'clarify', question });
-
-/** Cuts to at most `max` characters by whole graphemes, so no emoji is split. */
-function clip(value, max) {
-  const graphemes = Array.from(new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(value), (g) => g.segment);
-  let out = '';
-  for (const g of graphemes) {
-    if (out.length + g.length > max) break;
-    out += g;
-  }
-  return out;
-}
 
 // Curly and straight quotes count as the same character, one for one, so a
 // model that straightens iOS smart punctuation still finds Martin's text.
