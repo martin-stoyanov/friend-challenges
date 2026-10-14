@@ -57,11 +57,13 @@ Telegram → Netlify function (scripts/lib/reply.mjs)
   `npm run lint:copy`, where it is reported as a warning instead of failing; copy
   Claude writes is linted like any generated copy.
 - **D15 — When unsure, ask.** Claude can answer `clarify` with one short question
-  instead of guessing. Nothing is applied. The question ends with the week's tag
-  line, `#<n> · <week>` when it is about a proposal, otherwise a week-only tag.
-  When Martin replies to it, the webhook forwards the text of the message he
-  replied to (`reply_text`), so Claude reads his answer alongside its own
-  question.
+  instead of guessing. Nothing is applied.
+  - The question quotes what Martin wrote and ends with a question tag line,
+    `? · <week>`. Any reply to it goes to Claude, even a bare number, so his first
+    message isn't lost.
+  - The webhook forwards the text of the message he replied to (`reply_text`), so
+    Claude reads his answer together with its own question and his earlier
+    words.
 - **D16 — Claude Opus 5.5 over the existing raw-`fetch` client.**
   - The interpreter reuses `scripts/lib/claude.mjs`, which gains options for the
     model, effort, a JSON schema (`output_config.format`) and server-side refusal
@@ -105,13 +107,17 @@ Telegram → Netlify function (scripts/lib/reply.mjs)
     `descriptionBy` (martin | claude | none), `hint`, `question` and `readAs` (a
     one-line summary). All fields are required, nullable where they don't apply,
     with `additionalProperties: false`.
-  - `buildInterpretRequest({ message, replyN, proposals, published, styleGuide })`
+  - `buildInterpretRequest({ message, replyN, replyText, proposals, published, styleGuide })`
     returns the system prompt and user prompt. It gives Claude the week's
     proposals, what is published for that week, the proposal or confirmation
     replied to, and the message.
   - `readInterpretation(answer, context)` validates the answer:
     - `n` must exist;
-    - a `martin` description must be in the message;
+    - a `martin` description must be his own words (`findVerbatim`: curly and
+      straight quotes count as equal, word boundaries, at least three words),
+      and his own span of the message is what's stored;
+    - a link must appear in his message;
+    - a description and its author must come together;
     - fields go through `validateOverrides`;
     - a `claude` description is allowed only when the action is a pick.
 
@@ -135,8 +141,8 @@ Telegram → Netlify function (scripts/lib/reply.mjs)
   `apply-challenge.yml` with `week_id`, `message`, `reply_n` (empty when none),
   `reply_text` (the replied-to message's text, capped at 1500 characters, empty
   when none) and `source=message`, then acknowledges with 👍. `readTag` also
-  accepts a week-only tag (`· <week>`) so a reply to a question still finds its
-  week.
+  reads the question tag (`? · <week>`), and any reply to a question is prose,
+  even a bare number.
 - `.github/workflows/apply-challenge.yml`: new `message`, `reply_n` and
   `reply_text` inputs, and `actions: write` for D17.
 - Tests: the parser cases that change, the webhook payload for prose, and
@@ -190,8 +196,8 @@ Telegram → Netlify function (scripts/lib/reply.mjs)
 
 | Step | Status | Commit |
 | --- | --- | --- |
-| 11 | done | (this commit) |
-| 12 | pending | |
+| 11 | done | 7b6eb6b |
+| 12 | done | (this commit) |
 | 13 | pending | |
 | 14 | pending | |
 | 15 | pending | |
