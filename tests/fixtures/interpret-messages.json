@@ -1,0 +1,347 @@
+{
+  "proposals": {
+    "weekId": "2026-w43",
+    "weekOf": "2026-10-19",
+    "proposals": [
+      {
+        "n": 1,
+        "batch": 1,
+        "title": "The Guess the Number Challenge",
+        "description": "One person picks a number and keeps it secret. Everyone else takes turns asking yes-or-no questions, but not \"is it higher than 50?\" Think \"would this number fit on a parking ticket?\" or \"is this the kind of number someone would lie about their age to?\" You get one real guess each, so ask carefully. Whoever nails it first wins the round, then you swap who's holding the secret.",
+        "category": "both",
+        "difficulty": "easy",
+        "emoji": "🔢",
+        "trendSource": "TikTok",
+        "players": "2+",
+        "timeEstimate": "10-15 min",
+        "exampleUrl": "https://www.tiktok.com/search?q=guess%20the%20number%20challenge%20friends",
+        "reasoning": "The #guessnumber challenge has been all over TikTok's FYP in September-October 2026, with creators and friend groups posting rounds under #guessthenumber and #numbergame. It's a zero-prop game that reads well on camera because the guessers' logic — and confusion — does all the work.",
+        "createdAt": "2026-10-15T12:00:00.000Z"
+      },
+      {
+        "n": 2,
+        "batch": 1,
+        "title": "The No-Hands Challenge",
+        "description": "Pick something from the kitchen: a snack, a piece of fruit, a cup of something. The two of you have to move it from one side of the table to the other without using your hands at all. You can pin it between your chins, your shoulders, your elbows, whatever works. If it drops, you start over from that spot. The catch: you're not allowed to plan your technique out loud before you try it.",
+        "category": "couple",
+        "difficulty": "medium",
+        "emoji": "🙅",
+        "trendSource": "TikTok",
+        "players": "2",
+        "timeEstimate": "15-20 min",
+        "exampleUrl": "https://www.tiktok.com/search?q=no%20hands%20challenge%20couple",
+        "reasoning": "The #nohandchallenge has been pulling big couple engagement on TikTok in late September 2026, with videos showing the coordination breakdowns that make it genuinely watchable. It's physically simple but produces footage that's hard to predict.",
+        "createdAt": "2026-10-15T12:00:00.000Z"
+      },
+      {
+        "n": 3,
+        "batch": 1,
+        "title": "The Got-It Challenge",
+        "description": "Sit in a circle, each person holding a pen. Someone starts by tapping the table and saying \"got it,\" and the group has to figure out the secret rule governing when you're allowed to say it. The rule involves something you're doing or holding when you speak, not what you say. Once you think you've cracked it, you say \"got it\" on your turn and wait to see if the group confirms or rejects you. Anyone who thinks they know the rule has to demonstrate it, not explain it.",
+        "category": "friend",
+        "difficulty": "medium",
+        "emoji": "✒️",
+        "trendSource": "TikTok",
+        "players": "3+",
+        "timeEstimate": "15-20 min",
+        "exampleUrl": "https://www.tiktok.com/search?q=got%20it%20challenge%20friends",
+        "reasoning": "The #gotitchallenge has been circulating in friend-group TikToks in October 2026, racking up thousands of likes in clips where the moment someone finally \"gets it\" — and the chaos of people who are sure they do but don't — drives all the replay value.",
+        "createdAt": "2026-10-15T12:00:00.000Z"
+      },
+      {
+        "n": 4,
+        "batch": 1,
+        "title": "The Tone Challenge Game",
+        "description": "Pull up any line of dialogue, something from a show or a random sentence generator, and read it to your group. Each person has to deliver that exact same line back in a tone the group assigns them: deadpan, furious, deeply in love, terrified. No changing the words. You go around the circle once per line before moving to the next one, and whoever loses it mid-delivery sits out the next round.",
+        "category": "both",
+        "difficulty": "easy",
+        "emoji": "🎭",
+        "trendSource": "TikTok",
+        "players": "2+",
+        "timeEstimate": "10-15 min",
+        "exampleUrl": "https://www.tiktok.com/search?q=tone%20challenge%20game%20friends%20tiktok",
+        "reasoning": "The tone challenge game was flagged as a rising TikTok group trend in mid-2026 and has continued building through October, with the format working well in short-form video because each delivery is a self-contained moment that stands alone in a clip.",
+        "createdAt": "2026-10-15T12:00:00.000Z"
+      }
+    ],
+    "pick": null
+  },
+  "cases": [
+    {
+      "name": "picks by what it is about",
+      "message": "the kitchen one",
+      "expect": {
+        "action": "pick",
+        "n": 2,
+        "overrides": {}
+      }
+    },
+    {
+      "name": "picks by a loose description",
+      "message": "lets do the guessing game with numbers",
+      "expect": {
+        "action": "pick",
+        "n": 1,
+        "overrides": {}
+      }
+    },
+    {
+      "name": "number plus an audience change",
+      "message": "2, but make it for a group of friends",
+      "expect": {
+        "action": "pick",
+        "n": 2,
+        "overrides": {
+          "category": "friend"
+        }
+      }
+    },
+    {
+      "name": "players change in words",
+      "message": "the tone game, for 3 or more people",
+      "expect": {
+        "action": "pick",
+        "n": 4,
+        "overrides": {
+          "players": "3+"
+        }
+      }
+    },
+    {
+      "name": "rename",
+      "message": "I will take #3 and call it The Secret Rule Challenge",
+      "expect": {
+        "action": "pick",
+        "n": 3,
+        "overrides": {
+          "title": "The Secret Rule Challenge"
+        }
+      }
+    },
+    {
+      "name": "more with a theme",
+      "message": "none of these, something with music",
+      "expect": {
+        "action": "more",
+        "hintIncludes": "music"
+      }
+    },
+    {
+      "name": "more without a theme",
+      "message": "meh, none of these are good, send me others",
+      "expect": {
+        "action": "more",
+        "hint": null
+      }
+    },
+    {
+      "name": "help",
+      "message": "how does this work? what can I say to you",
+      "expect": {
+        "action": "help"
+      }
+    },
+    {
+      "name": "too vague to act on",
+      "message": "hmm",
+      "expect": {
+        "action": "clarify"
+      }
+    },
+    {
+      "name": "undecided between two",
+      "message": "either the food one or the number one, cant decide",
+      "expect": {
+        "action": "clarify"
+      }
+    },
+    {
+      "name": "reply to a proposal with his own description",
+      "message": "Grab a grape. The two of you have to get it across the table using only your elbows. Drop it and you start over.",
+      "replyN": 2,
+      "replyText": "🙅 The No-Hands Challenge\ncouple · medium\n\nPick something from the kitchen: a snack, a piece of fruit, a cup of something. The two of you have to move it from one side of the table to the other without using your hands at all. You can pin it between your chins, your shoulders, your elbows, whatever works. If it drops, you start over from that spot. The catch: you're not allowed to plan your technique out loud before you try it.\n#2 · 2026-w43",
+      "expect": {
+        "action": "pick",
+        "n": 2,
+        "descriptionBy": "martin",
+        "description": "Grab a grape. The two of you have to get it across the table using only your elbows. Drop it and you start over."
+      }
+    },
+    {
+      "name": "description after an intro",
+      "message": "2. Here is my description: Two of you move a grape across the table using only elbows. No hands, no mouths.",
+      "expect": {
+        "action": "pick",
+        "n": 2,
+        "descriptionBy": "martin",
+        "description": "Two of you move a grape across the table using only elbows. No hands, no mouths."
+      }
+    },
+    {
+      "name": "asks Claude to shorten the current description",
+      "message": "make the description shorter",
+      "pickedN": 2,
+      "published": {
+        "emoji": "🙅",
+        "title": "The No-Hands Challenge",
+        "category": "couple",
+        "description": "Pick something from the kitchen: a snack, a piece of fruit, a cup of something. The two of you have to move it from one side of the table to the other without using your hands at all. You can pin it between your chins, your shoulders, your elbows, whatever works. If it drops, you start over from that spot. The catch: you're not allowed to plan your technique out loud before you try it."
+      },
+      "replyN": 2,
+      "replyText": "🙅 The No-Hands Challenge\ncouple · medium\n\nPick something from the kitchen: a snack, a piece of fruit, a cup of something. The two of you have to move it from one side of the table to the other without using your hands at all. You can pin it between your chins, your shoulders, your elbows, whatever works. If it drops, you start over from that spot. The catch: you're not allowed to plan your technique out loud before you try it.\n#2 · 2026-w43",
+      "expect": {
+        "action": "pick",
+        "n": 2,
+        "descriptionBy": "claude"
+      }
+    },
+    {
+      "name": "asks Claude to write one",
+      "message": "write a fresh description for the number one, make it sound fun",
+      "expect": {
+        "action": "pick",
+        "n": 1,
+        "descriptionBy": "claude"
+      }
+    },
+    {
+      "name": "emoji change on the current pick",
+      "message": "change the emoji to 🍇",
+      "pickedN": 2,
+      "published": {
+        "emoji": "🙅",
+        "title": "The No-Hands Challenge",
+        "category": "couple",
+        "description": "Pick something from the kitchen: a snack, a piece of fruit, a cup of something. The two of you have to move it from one side of the table to the other without using your hands at all. You can pin it between your chins, your shoulders, your elbows, whatever works. If it drops, you start over from that spot. The catch: you're not allowed to plan your technique out loud before you try it."
+      },
+      "expect": {
+        "action": "pick",
+        "n": 2,
+        "overrides": {
+          "emoji": "🍇"
+        }
+      }
+    },
+    {
+      "name": "link on the current pick",
+      "message": "use this link instead https://www.tiktok.com/@someone/video/7400000000000000001",
+      "pickedN": 2,
+      "published": {
+        "emoji": "🙅",
+        "title": "The No-Hands Challenge",
+        "category": "couple",
+        "description": "Pick something from the kitchen: a snack, a piece of fruit, a cup of something. The two of you have to move it from one side of the table to the other without using your hands at all. You can pin it between your chins, your shoulders, your elbows, whatever works. If it drops, you start over from that spot. The catch: you're not allowed to plan your technique out loud before you try it."
+      },
+      "expect": {
+        "action": "pick",
+        "n": 2,
+        "overrides": {
+          "exampleUrl": "https://www.tiktok.com/@someone/video/7400000000000000001"
+        }
+      }
+    },
+    {
+      "name": "reply to one proposal naming another",
+      "message": "actually the kitchen one instead",
+      "replyN": 1,
+      "replyText": "🔢 The Guess the Number Challenge\nboth · easy\n\nOne person picks a number and keeps it secret. Everyone else takes turns asking yes-or-no questions, but not \"is it higher than 50?\" Think \"would this number fit on a parking ticket?\" or \"is this the kind of number someone would lie about their age to?\" You get one real guess each, so ask carefully. Whoever nails it first wins the round, then you swap who's holding the secret.\n#1 · 2026-w43",
+      "expect": {
+        "action": "pick",
+        "n": 2,
+        "overrides": {}
+      }
+    },
+    {
+      "name": "answer to a question, using his earlier description",
+      "message": "the second",
+      "replyText": "🤔 Did you mean the Guess the Number one (#1) or the No-Hands one (#2)?\n\nYou wrote:\nthe food one, description: Pass a grape around the table using only your chins.\n? · 2026-w43",
+      "expect": {
+        "action": "pick",
+        "n": 2,
+        "descriptionBy": "martin",
+        "description": "Pass a grape around the table using only your chins."
+      }
+    },
+    {
+      "name": "two field changes in plain words",
+      "message": "make it easy and for everyone",
+      "pickedN": 2,
+      "published": {
+        "emoji": "🙅",
+        "title": "The No-Hands Challenge",
+        "category": "couple",
+        "description": "Pick something from the kitchen: a snack, a piece of fruit, a cup of something. The two of you have to move it from one side of the table to the other without using your hands at all. You can pin it between your chins, your shoulders, your elbows, whatever works. If it drops, you start over from that spot. The catch: you're not allowed to plan your technique out loud before you try it."
+      },
+      "expect": {
+        "action": "pick",
+        "n": 2,
+        "overrides": {
+          "difficulty": "easy",
+          "category": "both"
+        }
+      }
+    },
+    {
+      "name": "number one with his own description",
+      "message": "the number one but with my own description: Pick a number between 1 and 100. Everyone else gets five yes-or-no questions to find it.",
+      "expect": {
+        "action": "pick",
+        "n": 1,
+        "descriptionBy": "martin",
+        "description": "Pick a number between 1 and 100. Everyone else gets five yes-or-no questions to find it."
+      }
+    },
+    {
+      "name": "his real reply, typos and all",
+      "message": "Pick something from the kitchen: a snack, a piece of fruit, cup, etc. The two of you have to move it from one side of the table to the other without using your hands at all.. If it drops, you start over from that spot. The catch: you're not allowed to plan your technique out loud before you try it.",
+      "replyN": 2,
+      "replyText": "🙅 The No-Hands Challenge\ncouple · medium\n\nPick something from the kitchen: a snack, a piece of fruit, a cup of something. The two of you have to move it from one side of the table to the other without using your hands at all. You can pin it between your chins, your shoulders, your elbows, whatever works. If it drops, you start over from that spot. The catch: you're not allowed to plan your technique out loud before you try it.\n#2 · 2026-w43",
+      "expect": {
+        "action": "pick",
+        "n": 2,
+        "descriptionBy": "martin",
+        "description": "Pick something from the kitchen: a snack, a piece of fruit, cup, etc. The two of you have to move it from one side of the table to the other without using your hands at all.. If it drops, you start over from that spot. The catch: you're not allowed to plan your technique out loud before you try it."
+      }
+    },
+    {
+      "name": "his description with curly quotes",
+      "message": "2\nGrab a grape and get it to the other side of the table without hands. Count “one, two, go” together and don’t plan your moves out loud.",
+      "expect": {
+        "action": "pick",
+        "n": 2,
+        "descriptionBy": "martin",
+        "description": "Grab a grape and get it to the other side of the table without hands. Count “one, two, go” together and don’t plan your moves out loud."
+      }
+    },
+    {
+      "name": "number then a description on the next lines",
+      "message": "3\nSit in a circle. One person makes up a secret rule for when you can say \"got it\", and everyone else has to work it out.",
+      "expect": {
+        "action": "pick",
+        "n": 3,
+        "descriptionBy": "martin",
+        "description": "Sit in a circle. One person makes up a secret rule for when you can say \"got it\", and everyone else has to work it out."
+      }
+    },
+    {
+      "name": "reply to a confirmation with a change",
+      "message": "actually make it for friends",
+      "replyN": 2,
+      "replyText": "✅ #2 is set for the week of Mon 19 Oct\n🙅 The No-Hands Challenge\n💕 couples · medium · 2 players · 15-20 min\n\nPick something from the kitchen.\n\nIt goes live on Mon 19 Oct. Reply to this message to change it before then.\n#2 · 2026-w43",
+      "pickedN": 2,
+      "published": {
+        "emoji": "🙅",
+        "title": "The No-Hands Challenge",
+        "category": "couple",
+        "description": "Pick something from the kitchen."
+      },
+      "expect": {
+        "action": "pick",
+        "n": 2,
+        "overrides": {
+          "category": "friend"
+        }
+      }
+    }
+  ]
+}

@@ -55,7 +55,7 @@ import {
 } from './lib/apply.mjs';
 import { callClaude } from './lib/claude.mjs';
 import { formatDateLocal, getCurrentMonday, getNextMonday, getWeekId } from './lib/dates.mjs';
-import { buildInterpretRequest, readInterpretation } from './lib/interpret.mjs';
+import { buildInterpretRequest, INTERPRET_OPTIONS, readInterpretation } from './lib/interpret.mjs';
 import { readProposals, writeProposals } from './lib/proposals.mjs';
 import {
   formatConfirmation,
@@ -77,16 +77,6 @@ const flag = (name) => {
 const fallback = args.includes('--fallback');
 const messageOut = flag('--message-out');
 const interpretationCache = flag('--interpretation-cache');
-
-// Claude Opus 5.5 reads free-form messages (plan D16): thinking on at medium
-// effort, a strict JSON schema, server-side refusal fallbacks, no web search.
-const INTERPRET_OPTIONS = {
-  model: 'claude-opus-5-5',
-  maxSearches: 0,
-  maxTokens: 16000,
-  effort: 'medium',
-  fallbacks: 'default',
-};
 
 const CLI_OVERRIDES = {
   '--description': 'description',

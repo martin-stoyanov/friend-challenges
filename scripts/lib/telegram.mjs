@@ -233,8 +233,8 @@ export function replyGuideText() {
   return [
     '<b>How to answer</b>',
     '• Tap <b>Pick</b> under a proposal to use it as written.',
-    '• Or reply to a proposal with your own text. That text becomes the description.',
-    '• Or send <code>2</code> to pick #2 as written, or put your own description on the lines after the number.',
+    '• Or send <code>2</code> to pick #2 as written.',
+    '• Or just write what you want, e.g. "the kitchen one, but for friends", "here\'s my description: …", "make the description shorter" or "none of these, something with music". You can reply to a proposal or write on its own. Claude reads it, and the confirmation says how it was read.',
     '',
     'Change other fields with one line each:',
     '<code>title: The Mirror Challenge</code>',
@@ -245,7 +245,7 @@ export function replyGuideText() {
     '<code>time: 10-15 min</code>',
     '<code>link: https://…</code>',
     '',
-    'Your text is used exactly as written. Send another reply any time before Monday to change the pick; picking the same number again keeps your earlier changes.',
+    'A description you write is used exactly as written; one Claude writes for you follows the style guide. If something is unclear you get a question back: just reply to it. Send another reply any time before Monday to change the pick; picking the same number again keeps your earlier changes.',
   ].join('\n');
 }
 

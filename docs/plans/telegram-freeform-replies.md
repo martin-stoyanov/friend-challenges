@@ -191,6 +191,18 @@ Telegram → Netlify function (scripts/lib/reply.mjs)
 - `scripts/eval-interpret.mjs`: runs them against the live model and reports
   agreement. It is opt-in, needs `ANTHROPIC_API_KEY`, and costs about $1 a run.
   Run it once and record the result here.
+
+  **Results, 14 Oct 2026** (Claude Opus 5.5, effort medium, 2–9 seconds per
+  message):
+  - **Run 1:** 20/20 read as expected. Both descriptions Claude wrote passed the
+    style check. "Make it shorter" cut 388 characters to 336: shorter, though
+    not by much.
+  - **Run 2:** 24 cases, after the review added Martin's real reply (typos
+    kept), curly quotes, a number followed by a description, and a reply to a
+    confirmation. 23/24 passed. The miss was a fixture error: the curly-quotes
+    description didn't fit proposal #2, and Claude asked whether he meant
+    another proposal, which is the intended behaviour. With the fixture fixed,
+    that case passes, curly quotes kept exactly.
 - Docs:
   - the reply guide gains "or just write what you want";
   - `AUTOMATION_PLAN.md` explains free-form replies, questions and themes;
@@ -205,5 +217,5 @@ Telegram → Netlify function (scripts/lib/reply.mjs)
 | 12 | done | 847dd5f |
 | 13 | done | 3788b11 |
 | 14 | done | 875f626 |
-| 15 | done | (this commit) |
-| 16 | pending | |
+| 15 | done | 1dc43e3 |
+| 16 | done | (this commit) |

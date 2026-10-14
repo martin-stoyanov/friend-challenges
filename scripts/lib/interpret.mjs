@@ -19,6 +19,17 @@ import { validateOverrides } from './apply.mjs';
 import { findProposal, MAX_HINT_LENGTH } from './proposals.mjs';
 import { clipGraphemes as clip } from './telegram.mjs';
 
+// Claude Opus 5.5 reads free-form messages (plan D16): thinking on at medium
+// effort, a strict JSON schema, server-side refusal fallbacks, no web search.
+// apply-choice.mjs and scripts/eval-interpret.mjs both use these.
+export const INTERPRET_OPTIONS = {
+  model: 'claude-opus-5-5',
+  maxSearches: 0,
+  maxTokens: 16000,
+  effort: 'medium',
+  fallbacks: 'default',
+};
+
 const MAX_QUESTION_LENGTH = 300;
 const MAX_READ_AS_LENGTH = 200;
 

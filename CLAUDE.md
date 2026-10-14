@@ -35,12 +35,24 @@ a description more concrete.
 ## Weekly proposals over Telegram
 
 The weekly challenge is picked by Martin from ideas a bot sends him on Telegram
-(`AUTOMATION_PLAN.md`, `docs/plans/telegram-weekly-proposals.md`). A description
-he writes there is published exactly as he wrote it. Don't rewrite it to the
-style guide in `challenges.json` unless he asks. `npm run lint:copy` reports his
-own copy as a warning for that reason. `proposals/<weekId>.json` files are
-written by the bot. Don't renumber or retitle proposals for an open week: the
-Pick buttons in his chat point at those numbers.
+(`AUTOMATION_PLAN.md`, `docs/plans/telegram-weekly-proposals.md`,
+`docs/plans/telegram-freeform-replies.md`).
+
+A description he writes there is published exactly as he wrote it. Don't rewrite
+it to the style guide in `challenges.json` unless he asks. `npm run lint:copy`
+reports his own copy as a warning for that reason. The week's pick records the
+author in `descriptionBy`. A description Claude writes on his request
+(`descriptionBy: "claude"`) is generated copy: it follows `writing-style.md`
+and is linted like any other.
+
+`proposals/<weekId>.json` files are written by the bot. Don't renumber or
+retitle proposals for an open week: the Pick buttons in his chat point at those
+numbers.
+
+After changing anything in `scripts/lib/interpret.mjs` (the prompt, the schema,
+`INTERPRET_OPTIONS`, or the checks in `readInterpretation`), run
+`node scripts/eval-interpret.mjs` (live, about $1) and compare it with the last
+result recorded in the plan.
 
 ## Before committing
 

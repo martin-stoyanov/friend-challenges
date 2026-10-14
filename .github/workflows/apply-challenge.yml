@@ -1,7 +1,8 @@
 name: Apply Challenge
 
-# A pick from Telegram (started by the webhook), a pick made by hand from the
-# Actions tab, or Sunday's fallback. docs/plans/telegram-weekly-proposals.md,
+# A pick from Telegram (started by the webhook), a free-form message for Claude
+# to read (docs/plans/telegram-freeform-replies.md), a pick made by hand from
+# the Actions tab, or Sunday's fallback. docs/plans/telegram-weekly-proposals.md,
 # Steps 7 and 9.
 
 on:
