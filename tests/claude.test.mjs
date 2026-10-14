@@ -115,3 +115,81 @@ test('after two pauses the resume carries both paused segments, and text from al
   assert.deepEqual(await callClaude('p', 's', { fetchImpl }), [{ title: 'The A Challenge' }]);
   assert.deepEqual(calls[2].body.messages[1], { role: 'assistant', content: [...first, ...second] });
 });
+
+test('an Opus request carries model, effort, schema and fallbacks, with the beta header and no tools', async () => {
+  const headersSeen = [];
+  const calls = [];
+  const fetchImpl = async (url, init) => {
+    headersSeen.push(init.headers);
+    calls.push(JSON.parse(init.body));
+    return reply({
+      stop_reason: 'end_turn',
+      content: [
+        { type: 'thinking', thinking: 'Maybe {"action":"more"}? No.', signature: 'sig' },
+        { type: 'text', text: '{"action":"help"}' },
+      ],
+    });
+  };
+  const schema = { type: 'object', properties: { action: { type: 'string' } }, required: ['action'], additionalProperties: false };
+  const result = await callClaude('p', 's', {
+    fetchImpl, model: 'claude-opus-5-5', maxSearches: 0, maxTokens: 8000, effort: 'medium', schema, fallbacks: 'default',
+  });
+  assert.deepEqual(result, { action: 'help' }, 'the thinking block is skipped');
+  assert.deepEqual(calls[0], {
+    model: 'claude-opus-5-5',
+    max_tokens: 8000,
+    system: 's',
+    messages: [{ role: 'user', content: 'p' }],
+    output_config: { effort: 'medium', format: { type: 'json_schema', schema } },
+    fallbacks: 'default',
+  });
+  assert.equal(headersSeen[0]['anthropic-beta'], 'server-side-fallback-2026-07-01');
+});
+
+test('without the new options no beta header or output_config is sent', async () => {
+  let headers;
+  let body;
+  const fetchImpl = async (_url, init) => {
+    headers = init.headers;
+    body = JSON.parse(init.body);
+    return reply({ stop_reason: 'end_turn', content: [{ type: 'text', text: '{}' }] });
+  };
+  await callClaude('p', 's', { fetchImpl });
+  assert.equal('anthropic-beta' in headers, false);
+  assert.equal('output_config' in body, false);
+  assert.equal('fallbacks' in body, false);
+});
+
+test('a refusal after fallbacks still throws', async () => {
+  const { fetchImpl } = fakeFetch([reply({
+    stop_reason: 'refusal',
+    stop_details: { type: 'refusal', category: 'cyber', explanation: 'declined by both' },
+    content: [{ type: 'fallback', from: { model: 'claude-opus-5-5' }, to: { model: 'claude-opus-4-8' } }],
+  })]);
+  await assert.rejects(callClaude('p', 's', { fetchImpl, fallbacks: 'default' }), /declined the request: declined by both/);
+});
+
+test('a reply cut off while still thinking fails with the retryable parse error', async () => {
+  const { fetchImpl } = fakeFetch([reply({
+    stop_reason: 'max_tokens',
+    content: [{ type: 'thinking', thinking: 'still going', signature: 'sig' }],
+  })]);
+  await assert.rejects(
+    callClaude('p', 's', { fetchImpl, maxSearches: 0 }),
+    /^Error: Failed to parse JSON from Claude response \(cut off at max_tokens before any answer\)/
+  );
+});
+
+test('with a schema the whole text is the answer, even if a field holds a code fence', async () => {
+  const answer = { action: 'pick', description: 'Say ```3``` out loud.' };
+  const { fetchImpl } = fakeFetch([reply({ stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(answer) }] })]);
+  const schema = { type: 'object', properties: {}, additionalProperties: false };
+  assert.deepEqual(await callClaude('p', 's', { fetchImpl, maxSearches: 0, schema }), answer);
+});
+
+test('fallbacks only accepts the default form', async () => {
+  await assert.rejects(
+    callClaude('p', 's', { fetchImpl: async () => { throw new Error('should not be called'); }, fallbacks: [{ model: 'x' }] }),
+    /fallbacks must be 'default'/
+  );
+});
