@@ -204,3 +204,17 @@ test('his description is stored trimmed; caps never split an emoji', () => {
   const readAs = readInterpretation(answer({ n: 1, readAs: 'y'.repeat(198) + family }), { message: '1', proposals }).readAs;
   assert.equal(readAs, 'y'.repeat(198));
 });
+
+test('words he wrote before, quoted in the question he is answering, count as his', () => {
+  const earlierMessage = 'the food one, my description: Pass a grape around the table using only chins.';
+  const result = readInterpretation(
+    answer({ n: 2, description: 'Pass a grape around the table using only chins.', descriptionBy: 'martin' }),
+    { message: '2', proposals, earlierMessage }
+  );
+  assert.deepEqual([result.type, result.overrides.description], ['pick', 'Pass a grape around the table using only chins.']);
+  const link = readInterpretation(
+    answer({ n: 2, fields: { ...answer().fields, link: 'https://www.tiktok.com/@b/video/2' } }),
+    { message: 'yes that one', proposals, earlierMessage: 'use https://www.tiktok.com/@b/video/2' }
+  );
+  assert.equal(link.overrides.exampleUrl, 'https://www.tiktok.com/@b/video/2');
+});

@@ -199,7 +199,7 @@ Telegram → Netlify function (scripts/lib/reply.mjs)
 | --- | --- | --- |
 | 11 | done | 7b6eb6b |
 | 12 | done | 847dd5f |
-| 13 | done | (this commit) |
-| 14 | pending | |
+| 13 | done | 3788b11 |
+| 14 | done | (this commit) |
 | 15 | pending | |
 | 16 | pending | |

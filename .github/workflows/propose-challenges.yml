@@ -28,6 +28,10 @@ on:
         description: 'Print the ideas without saving or sending them'
         type: boolean
         default: false
+      hint:
+        description: 'A theme for the ideas, e.g. "something with music" (optional)'
+        type: string
+        default: ''
 
 permissions:
   contents: write

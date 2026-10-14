@@ -64,3 +64,16 @@ test('readHandWrittenDescriptions reads picks with a description override only',
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('a description Claude wrote on request is not exempt; older picks without an author are his', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hand-'));
+  try {
+    const write = (weekId, pick) => fs.writeFileSync(path.join(dir, `${weekId}.json`), JSON.stringify({ weekId, proposals: [], pick }));
+    write('2026-w44', { n: 1, overrides: { description: 'By Claude.' }, descriptionBy: 'claude' });
+    write('2026-w43', { n: 1, overrides: { description: 'His, from before.' } });
+    write('2026-w42', { n: 1, overrides: { description: 'His.' }, descriptionBy: 'martin' });
+    assert.deepEqual([...readHandWrittenDescriptions(dir)].sort(), [['2026-w42', 'His.'], ['2026-w43', 'His, from before.']]);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

@@ -115,6 +115,46 @@ export function questionTag(weekId) {
   return `? · ${weekId}`;
 }
 
+// How much of his message a question quotes back. Question plus quote plus tag
+// stay under the 1500 characters the webhook forwards when he replies.
+const QUOTED_MESSAGE_LIMIT = 1_000;
+const QUOTE_INTRO = 'You wrote:';
+// Marks a quote that had to be cut. A cut quote is still context for Claude,
+// but never counts as his exact words (a description could end mid-word).
+const QUOTE_CUT = '[…cut short]';
+
+/**
+ * A clarifying question (D15): the question, what he wrote, and the question
+ * tag, so his reply is read with both. Plain text, escaped.
+ */
+export function formatQuestion({ question, message, weekId }) {
+  const quote = clipGraphemes(message, QUOTED_MESSAGE_LIMIT);
+  return {
+    text: [
+      // One line, so nothing the question says can pass for the quote below.
+      `🤔 ${escapeHtml(question.replace(/\s*\n\s*/g, ' '))}`,
+      '',
+      QUOTE_INTRO,
+      escapeHtml(quote),
+      ...(quote.length < message.length ? [QUOTE_CUT] : []),
+      questionTag(weekId),
+    ].join('\n'),
+  };
+}
+
+/**
+ * What he wrote, read back out of a question's text (the inverse of
+ * formatQuestion), or null when the text isn't one of the bot's questions or
+ * the quote was cut short.
+ */
+export function quotedMessageFromQuestion(text) {
+  const lines = (text ?? '').split('\n');
+  if (lines[2] !== QUOTE_INTRO || !/^\? · \d{4}-w\d{2}$/.test(lines.at(-1) ?? '')) return null;
+  const quote = lines.slice(3, -1);
+  if (quote.at(-1) === QUOTE_CUT) return null;
+  return quote.join('\n') || null;
+}
+
 /** "Mon 19 Oct" for a YYYY-MM-DD weekOf, read as a local date. */
 export function formatWeekLabel(weekOf) {
   return new Date(`${weekOf}T00:00:00`).toLocaleDateString('en-GB', {
@@ -281,11 +321,16 @@ function clipEscaped(raw, limit, suffix = '…') {
  * as the proposal, so replying to it changes the same pick.
  *
  * `violations` are style-check results for the description. Martin's own text
- * is published as written (plan D5), so they are reported, not fixed. Every
+ * is published as written (plan D5), so they are reported, not fixed.
+ * `descriptionBy` is who wrote the description on the card (it sets how a
+ * warning is worded); `wroteDescription` says Claude wrote it just now. Every
  * part that can grow is clipped, so the message always fits in one Telegram
  * message whatever passed validation.
  */
-export function formatConfirmation({ challenge, n, weekId, changed = [], violations = [], fallback = false, live = false }) {
+export function formatConfirmation({
+  challenge, n, weekId, changed = [], violations = [], fallback = false, live = false,
+  readAs = null, descriptionBy = null, wroteDescription = false,
+}) {
   const week = escapeHtml(formatWeekLabel(challenge.weekOf));
   const heading = fallback
     ? `⏰ <b>No pick by Sunday, so #${n} is set for the week of ${week}</b>`
@@ -311,10 +356,14 @@ export function formatConfirmation({ challenge, n, weekId, changed = [], violati
       clipEscaped(challenge.description, echoLimit, '… (shortened here; the card has all of it)'),
       '',
     ];
+    if (readAs) lines.push(`I read this as: ${escapeHtml(clipGraphemes(readAs, 200))}`);
     if (changed.length) lines.push(`Your changes: ${escapeHtml(changed.join(', '))}`);
+    if (wroteDescription) lines.push('I wrote the description, as you asked.');
     if (warnings.length) {
       lines.push(
-        '⚠️ The style check flagged the description. It is published as written; reply with a new version to replace it.',
+        descriptionBy === 'claude'
+          ? '⚠️ The style check still flags the description I wrote. Reply with what to change, or with your own version.'
+          : '⚠️ The style check flagged the description. It is published as written; reply with a new version to replace it.',
         ...warnings
       );
     }

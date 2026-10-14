@@ -92,7 +92,7 @@ Description:
 - Only if he asks you to write or rewrite the description ("make it shorter", "write one about the floor being lava"), write it yourself, based on the proposal or the current description, and set descriptionBy to "claude". Keep the challenge's mechanics. Never add a prop, number or rule that isn't part of the challenge.{{STYLE}}
 - Otherwise description is null and descriptionBy is "none".
 
-If he replied to a proposal, that proposal is the one he means unless he names another. If he replied to an earlier question from the bot, read his message as the answer to it; the question quotes what he wrote before.
+If he replied to a proposal, that proposal is the one he means unless he names another. If he replied to an earlier question from the bot, read his message as the answer to it; the question quotes what he wrote before, and a description he wrote there still counts as his words.
 
 readAs: one short line saying how you read the message, in plain words, for example "#2, category → couple, with your description".`;
 
@@ -129,7 +129,7 @@ export function buildInterpretRequest({ message, replyN = null, replyText = null
   }
   if (replyText) {
     lines.push(
-      `He replied to this message from the bot${replyN ? ` (about proposal #${replyN})` : ''}:`,
+      `He replied to this earlier message${replyN ? ` (about proposal #${replyN})` : ''}:`,
       '<replied_to>',
       replyText,
       '</replied_to>',
@@ -174,9 +174,12 @@ export function findVerbatim(message, candidate) {
 
 /**
  * Checks Claude's answer against the message and the week. `context` is
- * { message, proposals }.
+ * { message, proposals, earlierMessage }: earlierMessage is what he wrote
+ * before, quoted in a question he is now answering; his words there count as
+ * his own too.
  */
-export function readInterpretation(answer, { message, proposals }) {
+export function readInterpretation(answer, { message, proposals, earlierMessage = null }) {
+  const ownTexts = [message, earlierMessage].filter(Boolean);
   if (!answer || typeof answer !== 'object') {
     return clarify("Sorry, I couldn't make sense of that. Could you say it another way?");
   }
@@ -209,7 +212,7 @@ export function readInterpretation(answer, { message, proposals }) {
         if (typeof value === 'string' && value.trim()) overrides[key] = value.trim();
       }
       // A link can only come from his message: never one the model made up.
-      if (overrides.exampleUrl && !message.includes(overrides.exampleUrl)) {
+      if (overrides.exampleUrl && !ownTexts.some((t) => t.includes(overrides.exampleUrl))) {
         return clarify("I couldn't find that link in your message. Could you paste it again?");
       }
 
@@ -223,7 +226,7 @@ export function readInterpretation(answer, { message, proposals }) {
       let descriptionBy = 'none';
       if (by === 'martin') {
         // D14: his words, exactly. A paraphrase is not his text.
-        const his = findVerbatim(message, description);
+        const his = ownTexts.map((t) => findVerbatim(t, description)).find(Boolean);
         if (!his) {
           return clarify(
             "I wasn't sure which part of your message is the description. Send it again with the description on its own lines?"
@@ -236,7 +239,11 @@ export function readInterpretation(answer, { message, proposals }) {
         descriptionBy = 'claude';
       }
 
-      const problems = validateOverrides(overrides);
+      // A description Claude wrote is its own to fix (apply-choice.mjs shortens or
+      // rewrites it); asking Martin to "send it again" would make no sense.
+      const checked = { ...overrides };
+      if (descriptionBy === 'claude') delete checked.description;
+      const problems = validateOverrides(checked);
       if (problems.length) return clarify(`I couldn't use that: ${problems.join('; ')}. Could you send it again?`);
 
       const readAs = typeof answer.readAs === 'string' && answer.readAs.trim()
