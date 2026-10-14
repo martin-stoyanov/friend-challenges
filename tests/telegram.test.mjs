@@ -102,6 +102,8 @@ test('the header names the week in words and by id', () => {
   const { text } = formatHeader('2026-w43', '2026-10-19', 4);
   assert.match(text, /4 ideas for the week of Mon 19 Oct/);
   assert.match(text, /2026-w43/);
+  const themed = formatHeader('2026-w43', '2026-10-19', 4, { more: true, hint: 'music & <dance>' }).text;
+  assert.match(themed, /4 more ideas around "music &amp; &lt;dance&gt;" for the week of/);
 });
 
 test('telegramApi posts JSON to the method URL and returns result', async () => {

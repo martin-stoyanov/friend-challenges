@@ -28,6 +28,8 @@
  *                the coming week; a workflow_dispatch passes mode, week_id,
  *                count and dry_run as inputs. Inputs are read as data, never
  *                through a shell.
+ *   --hint "…"   With --propose: a theme for the ideas, e.g. "something with music"
+ *                (from an event: the workflow's hint input)
  *   --batch-out <file>      With --propose: also write the sent batch to <file>
  *   --restore-batch <file>  Put a batch written by --batch-out back into the
  *                week's file, keeping its numbers (after a lost push race)
@@ -54,6 +56,7 @@ import {
   appendBatch,
   createProposals,
   hasFreshBatch,
+  MAX_HINT_LENGTH,
   mergeRewrites,
   proposalsPath,
   proposedTitles,
@@ -80,9 +83,29 @@ const CHALLENGES_PATH = path.join(__dirname, '..', 'src', 'data', 'challenges.js
 const WEEK_ID = /^\d{4}-w\d{2}$/;
 
 /**
+ * A theme for proposals: trimmed, on one line, at most 200 characters, or
+ * null when empty. Exits on anything longer: the hint comes from Claude's
+ * reading of a message (already short) or a hand-run.
+ */
+function readHint(value) {
+  const hint = String(value ?? '').replace(/\s+/g, ' ').trim();
+  if (!hint) return null;
+  if (hint.length > MAX_HINT_LENGTH) {
+    console.error(`❌ The hint must be at most ${MAX_HINT_LENGTH} characters, got ${hint.length}.`);
+    process.exit(1);
+  }
+  return hint;
+}
+
+// The event's hint is kept here, beside the flags, never put among them: a
+// hint like "--backfill" must stay text, not become a flag.
+let eventHint = null;
+
+/**
  * Turns the GitHub event behind --from-event into ordinary --propose flags.
  * Each input is checked before it becomes an argument, so a value like
- * "--backfill" can't smuggle in a flag.
+ * "--backfill" can't smuggle in a flag. The hint never becomes an argument at
+ * all: it is kept in eventHint, as text.
  */
 function withEventArgs(argv) {
   if (!argv.includes('--from-event')) return argv;
@@ -103,6 +126,7 @@ function withEventArgs(argv) {
     out.push('--week-id', weekId);
   }
   if (inputs.dry_run === true || inputs.dry_run === 'true') out.push('--dry-run');
+  eventHint = readHint(inputs.hint);
   return out;
 }
 
@@ -125,6 +149,13 @@ const batchOutIdx = args.indexOf('--batch-out');
 const batchOut = batchOutIdx !== -1 ? args[batchOutIdx + 1] : null;
 const restoreIdx = args.indexOf('--restore-batch');
 const restoreFrom = restoreIdx !== -1 ? args[restoreIdx + 1] : null;
+const hintIdx = args.indexOf('--hint');
+// A hand-typed --hint needs a theme right after it, not another flag.
+if (!fromEvent && hintIdx !== -1 && (!args[hintIdx + 1] || args[hintIdx + 1].startsWith('--'))) {
+  console.error('❌ --hint needs a theme after it, e.g. --hint "something with music"');
+  process.exit(1);
+}
+const hint = fromEvent ? eventHint : hintIdx !== -1 ? readHint(args[hintIdx + 1]) : null;
 // Titles that were generated but rejected as low quality. They are no longer in
 // challenges.json, so the avoid-list can't see them and the model regenerates them.
 const rejectedTitles = (process.env.AVOID_TITLES || '')
@@ -336,7 +367,7 @@ Keep the same challenge and rewrite the description so it passes. Respond with O
   return newChallenge;
 }
 
-function buildProposalsPrompt({ count, weekOf, existing, alreadyProposed }) {
+function buildProposalsPrompt({ count, weekOf, existing, alreadyProposed, hint }) {
   const existingLines = existing.map(c => `- "${c.title}" — ${c.description.substring(0, 80)}...`);
   const today = new Date().toISOString().split('T')[0];
   const audienceHint = forcedCategory
@@ -358,7 +389,9 @@ ${alreadyProposed.map(t => `- "${t}"`).join('\n')}
 ` : ''}
 ${audienceHint}
 
-Make them genuinely different from each other: different mechanics, not variations on one idea. ${alreadyProposed.length ? 'Order them best first.' : 'Order them best first; the first one is published automatically if nobody picks.'}
+${hint ? `Martin asked for ideas around: "${hint}". Every challenge should fit that theme, but only as a real trend; don't invent a trend to fit it. If few real ones fit, include the closest real trends. If the theme names an audience (couples, friends), that replaces the mix of audiences above.
+
+` : ''}Make them genuinely different from each other: different mechanics, not variations on one idea. ${alreadyProposed.length ? 'Order them best first.' : 'Order them best first; the first one is published automatically if nobody picks.'}
 
 Search first, then give me challenges that are genuinely trending in ${today.substring(0, 7)} — not ones from a prior year.
 
@@ -403,8 +436,8 @@ Respond with ONLY a raw JSON array of ${failing.length} objects, each {"title": 
   return merged;
 }
 
-async function generateProposals({ count, weekOf, existing, alreadyProposed }) {
-  const prompt = buildProposalsPrompt({ count, weekOf, existing, alreadyProposed });
+async function generateProposals({ count, weekOf, existing, alreadyProposed, hint }) {
+  const prompt = buildProposalsPrompt({ count, weekOf, existing, alreadyProposed, hint });
   const maxAttempts = 3;
   let drafts;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -472,7 +505,8 @@ async function runPropose(existing) {
   if (more && !current) {
     await answer(`Nothing has been proposed for ${weekId} yet, so there is nothing to add more ideas to.`);
   }
-  if (more && hasFreshBatch(current)) {
+  // A themed request is deliberate, not a double tap on the button.
+  if (more && !hint && hasFreshBatch(current)) {
     // Most likely a double tap. Say so, so the "more ideas coming" toast isn't
     // left hanging.
     console.log(`⏭️  A batch for ${weekId} went out moments ago; not sending another.`);
@@ -498,12 +532,13 @@ async function runPropose(existing) {
     return;
   }
 
-  console.log(`🤖 Proposing ${proposeCount} challenge(s) for week of ${weekOf} (${weekId})...\n`);
+  console.log(`🤖 Proposing ${proposeCount} challenge(s) for week of ${weekOf} (${weekId})${hint ? ` around "${hint}"` : ''}...\n`);
   const drafts = await generateProposals({
     count: proposeCount,
     weekOf,
     existing,
     alreadyProposed: proposedTitles(current),
+    hint,
   });
   if (drafts.length === 0) {
     console.error('😕 No usable proposals came back.');
@@ -535,7 +570,7 @@ async function runPropose(existing) {
   // Send first, save after. sendProposalBatch is all or nothing (it deletes a
   // half-sent batch), so a failed send leaves no file and no live buttons, and
   // a rerun starts clean.
-  await sendProposalBatch(chatId, { weekId, weekOf, proposals: added, more, moreCount: proposeCount });
+  await sendProposalBatch(chatId, { weekId, weekOf, proposals: added, more, moreCount: proposeCount, hint });
   console.log(`📨 Sent ${added.length} proposal(s) to Telegram.`);
   writeProposals(file);
   console.log(`💾 Saved to ${proposalsPath(weekId)}`);
@@ -575,6 +610,10 @@ async function main() {
   }
   if (more && !propose) {
     console.error('❌ --more only works with --propose');
+    process.exit(1);
+  }
+  if (hint && !propose) {
+    console.error('❌ --hint only works with --propose');
     process.exit(1);
   }
   if (forcedWeekId && (!WEEK_ID.test(forcedWeekId) || forcedWeek)) {

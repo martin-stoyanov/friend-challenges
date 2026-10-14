@@ -16,10 +16,9 @@
 
 import { CATEGORIES, DIFFICULTIES } from './challenge.mjs';
 import { validateOverrides } from './apply.mjs';
-import { findProposal } from './proposals.mjs';
+import { findProposal, MAX_HINT_LENGTH } from './proposals.mjs';
 import { clipGraphemes as clip } from './telegram.mjs';
 
-const MAX_HINT_LENGTH = 200;
 const MAX_QUESTION_LENGTH = 300;
 const MAX_READ_AS_LENGTH = 200;
 

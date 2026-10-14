@@ -21,7 +21,12 @@ import fs from 'node:fs';
 let call = 0;
 globalThis.fetch = async (url, init) => {
   const body = JSON.parse(init.body);
-  fs.appendFileSync(process.env.STUB_LOG, JSON.stringify({ url: String(url).replace(/bot[^/]+/, 'bot<T>'), method: String(url).split('/').at(-1) }) + '\\n');
+  fs.appendFileSync(process.env.STUB_LOG, JSON.stringify({
+    url: String(url).replace(/bot[^/]+/, 'bot<T>'),
+    method: String(url).split('/').at(-1),
+    prompt: body.messages?.[0]?.content,
+    text: body.text,
+  }) + '\\n');
   if (String(url).includes('api.telegram.org')) {
     return new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }));
   }
@@ -190,4 +195,71 @@ test('--restore-batch puts a sent batch back after a reset, without calling anyo
   assert.equal(status, 0);
   assert.equal(calls.length, 0);
   assert.deepEqual(readFile(upcoming.weekId).proposals.map((p) => p.n), [1, 2, 3, 4]);
+});
+
+test('a hint from the event reaches the proposals prompt and the batch header', () => {
+  seedBatch(upcoming.weekId, upcoming.weekOf, Date.now() - 60 * 60_000);
+  const { status, calls, stderr } = run(['--from-event'], {
+    eventName: 'workflow_dispatch',
+    inputs: { mode: 'more', week_id: upcoming.weekId, count: '4', dry_run: false, hint: '  something   with music ' },
+  });
+  assert.equal(status, 0, stderr);
+  const claude = calls.find((c) => c.url.includes('anthropic'));
+  assert.match(claude.prompt, /Martin asked for ideas around: "something with music"\. Every challenge should fit that theme, but only as a real trend/);
+  const header = calls.find((c) => c.method === 'sendMessage');
+  assert.match(header.text, /4 more ideas around "something with music" for the week of/);
+});
+
+test('a hint that looks like a flag stays text; an overlong hint is refused', () => {
+  seedBatch(upcoming.weekId, upcoming.weekOf, Date.now() - 60 * 60_000);
+  const sneaky = run(['--from-event'], {
+    eventName: 'workflow_dispatch',
+    inputs: { mode: 'more', week_id: upcoming.weekId, count: '2', dry_run: 'true', hint: '--backfill' },
+  });
+  assert.equal(sneaky.status, 0, sneaky.stderr);
+  assert.match(sneaky.stdout, /Proposing 2 challenge\(s\) for week of .* around "--backfill"/, 'still a propose run, with the hint as text');
+  assert.match(sneaky.calls.find((c) => c.url.includes('anthropic')).prompt, /ideas around: "--backfill"/);
+
+  const long = run(['--from-event'], {
+    eventName: 'workflow_dispatch',
+    inputs: { mode: 'more', week_id: upcoming.weekId, hint: 'x'.repeat(201) },
+  });
+  assert.equal(long.status, 1);
+  assert.match(long.stderr, /at most 200 characters/);
+  assert.equal(long.calls.length, 0);
+});
+
+test('without a hint the prompt has no theme line', () => {
+  const { calls } = run(['--from-event'], { eventName: 'schedule' });
+  assert.doesNotMatch(calls.find((c) => c.url.includes('anthropic')).prompt, /asked for ideas around/);
+});
+
+test('exactly 200 characters is a valid hint; a themed "more" is not held back as a double tap', () => {
+  seedBatch(upcoming.weekId, upcoming.weekOf, Date.now() - 30_000);
+  const { status, calls, stderr } = run(['--from-event'], {
+    eventName: 'workflow_dispatch',
+    inputs: { mode: 'more', week_id: upcoming.weekId, count: '4', dry_run: false, hint: 'y'.repeat(200) },
+  });
+  assert.equal(status, 0, stderr);
+  assert.ok(calls.some((c) => c.url.includes('anthropic')), 'a fresh batch 30s old does not stop a themed request');
+});
+
+test('a hand-typed --hint needs a theme and --propose', () => {
+  for (const args of [['--propose', '2', '--dry-run', '--hint'], ['--propose', '2', '--hint', '--dry-run']]) {
+    const { status, stderr } = run(args);
+    assert.equal(status, 1, args.join(' '));
+    assert.match(stderr, /--hint needs a theme after it/);
+  }
+  const noPropose = run(['--hint', 'music', '--dry-run']);
+  assert.equal(noPropose.status, 1);
+  assert.match(noPropose.stderr, /--hint only works with --propose/);
+});
+
+test('a theme naming an audience replaces the usual mix', () => {
+  seedBatch(upcoming.weekId, upcoming.weekOf, Date.now() - 60 * 60_000);
+  const { calls } = run(['--from-event'], {
+    eventName: 'workflow_dispatch',
+    inputs: { mode: 'more', week_id: upcoming.weekId, count: '2', dry_run: 'true', hint: 'something for couples' },
+  });
+  assert.match(calls.find((c) => c.url.includes('anthropic')).prompt, /If the theme names an audience \(couples, friends\), that replaces the mix of audiences above\./);
 });

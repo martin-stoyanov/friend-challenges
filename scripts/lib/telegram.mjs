@@ -216,11 +216,15 @@ export function formatProposal(proposal, weekId) {
   };
 }
 
-/** The first message of a batch. A later batch for the same week says "more". */
-export function formatHeader(weekId, weekOf, count, { more = false } = {}) {
+/**
+ * The first message of a batch. A later batch for the same week says "more",
+ * and a batch asked for with a theme names it.
+ */
+export function formatHeader(weekId, weekOf, count, { more = false, hint = null } = {}) {
   const noun = count === 1 ? 'idea' : 'ideas';
+  const theme = hint ? ` around "${escapeHtml(hint)}"` : '';
   return {
-    text: `🗓️ <b>${count} ${more ? 'more ' : ''}${noun} for the week of ${escapeHtml(formatWeekLabel(weekOf))}</b> (${escapeHtml(weekId)})`,
+    text: `🗓️ <b>${count} ${more ? 'more ' : ''}${noun}${theme} for the week of ${escapeHtml(formatWeekLabel(weekOf))}</b> (${escapeHtml(weekId)})`,
   };
 }
 
@@ -267,9 +271,9 @@ export function formatFooter(weekId, count) {
  * Pick buttons for a batch that was never saved, and a rerun would renumber,
  * so an old "Pick #1" could publish a different challenge.
  */
-export async function sendProposalBatch(chatId, { weekId, weekOf, proposals, more = false, moreCount }, options) {
+export async function sendProposalBatch(chatId, { weekId, weekOf, proposals, more = false, moreCount, hint = null }, options) {
   const messages = [
-    formatHeader(weekId, weekOf, proposals.length, { more }),
+    formatHeader(weekId, weekOf, proposals.length, { more, hint }),
     ...proposals.map((proposal) => formatProposal(proposal, weekId)),
     formatFooter(weekId, moreCount ?? proposals.length),
   ];

@@ -175,10 +175,14 @@ Telegram → Netlify function (scripts/lib/reply.mjs)
 ### Step 15: "More" with a theme (D17)
 
 - `propose-challenges.yml`: optional `hint` input.
-- `generate-challenge.mjs`: `--from-event` passes it through as `--hint`, checked
-  and capped at 200 characters. The proposals prompt gets a line asking for ideas
-  that fit it.
-- Tests: the hint reaches the prompt; a junk or overlong hint is refused.
+- `generate-challenge.mjs`: `--from-event` reads the hint as text and never puts it
+  among the flags, so a hint like `--backfill` stays a theme. A hand-run uses
+  `--hint "…"`. The hint is trimmed, kept on one line and capped at 200
+  characters. The proposals prompt asks for ideas that fit it, only as real
+  trends; a named audience replaces the usual mix. A themed "more" isn't held
+  back as a double tap, and the batch header names the theme.
+- Tests: the hint reaches the prompt and the header; a flag-like hint stays text;
+  an overlong hint is refused.
 
 ### Step 16: Evaluation and docs
 
@@ -200,6 +204,6 @@ Telegram → Netlify function (scripts/lib/reply.mjs)
 | 11 | done | 7b6eb6b |
 | 12 | done | 847dd5f |
 | 13 | done | 3788b11 |
-| 14 | done | (this commit) |
-| 15 | pending | |
+| 14 | done | 875f626 |
+| 15 | done | (this commit) |
 | 16 | pending | |
