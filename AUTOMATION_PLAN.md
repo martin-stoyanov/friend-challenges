@@ -60,7 +60,9 @@ own, and any reply to one of the bot's questions (even a bare number).
 
 - **A pick or a change.** Claude works out the proposal ("the kitchen one") and
   the fields you meant ("couples-only" means category couple). The confirmation
-  includes a line "I read this as: …".
+  includes a line built from what was actually applied, for example "I read this
+  as: #2 The No-Hands Challenge · for → friends · your description, word for
+  word". A field you set to the value it already had says "(already)".
 - **Your description.** Claude copies it word for word, and the bot checks that
   it really is your text before using it.
 - **A description Claude writes.** This happens only when you ask ("make it
@@ -73,9 +75,9 @@ own, and any reply to one of the bot's questions (even a bare number).
   what you wrote. Reply to it, even with just a number, and it's read together
   with your first message.
 
-Accuracy is checked with `node scripts/eval-interpret.mjs` on 20 realistic
-messages in `tests/fixtures/interpret-messages.json` (about $1 a run). The first
-run, on 14 Oct 2026, read all 20 as expected.
+Accuracy is checked with `node scripts/eval-interpret.mjs` on 24 realistic
+messages in `tests/fixtures/interpret-messages.json` (about $1 a run). The latest
+run, on 15 Oct 2026, read all 24 as expected.
 
 Only the live week and later weeks can change. A tap on an old week's button is
 answered with "in the archive now".

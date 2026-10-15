@@ -205,6 +205,8 @@ Telegram → Netlify function (scripts/lib/reply.mjs)
     description didn't fit proposal #2, and Claude asked whether he meant
     another proposal, which is the intended behaviour. With the fixture fixed,
     that case passes, curly quotes kept exactly.
+  - Later runs are recorded in `docs/plans/read-as-line.md` (Step 18), and the
+    latest result is noted in `AUTOMATION_PLAN.md`.
 - Docs:
   - the reply guide gains "or just write what you want";
   - `AUTOMATION_PLAN.md` explains free-form replies, questions and themes;

@@ -51,8 +51,9 @@ numbers.
 
 After changing anything in `scripts/lib/interpret.mjs` (the prompt, the schema,
 `INTERPRET_OPTIONS`, or the checks in `readInterpretation`), run
-`node scripts/eval-interpret.mjs` (live, about $1) and compare it with the last
-result recorded in the plan.
+`node scripts/eval-interpret.mjs` (live, about $1). Compare it with the latest
+result noted in `AUTOMATION_PLAN.md` ("Accuracy is checked …"), and update that
+note.
 
 ## Before committing
 

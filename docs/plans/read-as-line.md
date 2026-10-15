@@ -50,11 +50,16 @@ Branch: `modern-claude-and-read-as` (off `master` at `f8117e1`), shared with
 
 - `node scripts/eval-interpret.mjs` (live, about $1). `CLAUDE.md` requires it
   after any change to `interpret.mjs`. Record the result here.
+
+  **Result, 15 Oct 2026: 24/24 read as expected** without `readAs` in the
+  schema. For example, his real No-Hands reply reads "#2 The No-Hands Challenge
+  · your description, word for word", where Claude's own line had said "your
+  edited description".
 - `AUTOMATION_PLAN.md`: the example confirmation line.
 
 ## Status
 
 | Step | Status | Commit |
 | --- | --- | --- |
-| 17 | done | (this commit) |
-| 18 | pending | |
+| 17 | done | 2e5a289 |
+| 18 | done | (this commit) |
