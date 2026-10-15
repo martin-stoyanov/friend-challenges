@@ -70,6 +70,7 @@ import { callClaude, sleep } from './lib/claude.mjs';
 import {
   buildChallengeRecord,
   CATEGORIES,
+  DIFFICULTIES,
   isDuplicateTitle,
   normalizeEnums,
   toTikTokSearchUrl,
@@ -170,20 +171,87 @@ const AUDIENCES = {
   both: 'both friends and couples',
 };
 
-// The JSON shape every challenge is requested in, shared by the single-week
-// prompt and the proposals prompt so the two never drift apart.
-const CHALLENGE_JSON_SPEC = `{
-  "title": "The [Name] Challenge",
-  "description": "4-5 sentences on how to actually play, written to the style guide in the system prompt. Sound like a friend who wants you to try this, not a manual: contractions, an aside, an opinion, a warning about the floor. Describe the mechanics in order so a reader who has never seen the challenge could run it, and introduce anything before you refer to it. Do not tell the reader it is funny. No em dashes, no 'the goal is to...', no three-item adjective closer, and no run of clipped four-word sentences. At least one sentence under 10 words and one over 15. Do not invent props, counts, or rules that are not part of the real challenge.",
-  "category": "friend" | "couple" | "both",
-  "difficulty": "easy" | "medium" | "hard",
-  "emoji": "a single relevant emoji",
-  "trendSource": "where this trend originated or is most popular (e.g. TikTok, Instagram Reels)",
-  "players": "number of players needed (e.g. '2', '2+', '3+')",
-  "timeEstimate": "estimated time including setup (e.g. '10-15 min', '20-30 min') — be realistic, factor in prep, explanation, and cleanup",
-  "exampleUrl": "a TikTok SEARCH URL for this challenge so viewers land on real videos. Format: https://www.tiktok.com/search?q=<query> where <query> is the words people actually use to find this challenge (URL-encode spaces as %20). Base the query on a hashtag or phrase you ACTUALLY saw in your web_search results — do NOT invent one. For example: https://www.tiktok.com/search?q=whisper%20challenge. Do NOT use tiktok.com/tag/ URLs — fabricated hashtags dead-end on an empty 'Couldn't find this hashtag' page.",
-  "reasoning": "1-2 sentences explaining why you chose this challenge and why it's trending"
-}`;
+// What good fields look like, in plain words. The JSON shape itself is enforced
+// by the schemas below (structured outputs), so the prompts no longer spell out
+// JSON syntax. Shared by the single-week and proposals prompts so they never
+// drift apart.
+const CHALLENGE_FIELD_GUIDE = `- title: "The [Name] Challenge".
+- description: 4-5 sentences on how to actually play, written to the style guide in the system prompt. Sound like a friend who wants you to try this, not a manual: contractions, an aside, an opinion, a warning about the floor. Describe the mechanics in order so a reader who has never seen the challenge could run it, and introduce anything before you refer to it. Do not tell the reader it is funny. No em dashes, no 'the goal is to...', no three-item adjective closer, and no run of clipped four-word sentences. At least one sentence under 10 words and one over 15. Do not invent props, counts, or rules that are not part of the real challenge.
+- category: friend, couple or both.
+- difficulty: easy, medium or hard.
+- emoji: a single relevant emoji.
+- trendSource: where this trend originated or is most popular (e.g. TikTok, Instagram Reels).
+- players: number of players needed (e.g. '2', '2+', '3+').
+- timeEstimate: estimated time including setup (e.g. '10-15 min', '20-30 min'). Be realistic: factor in prep, explanation, and cleanup.
+- exampleUrl: a TikTok SEARCH URL for this challenge so viewers land on real videos. Format: https://www.tiktok.com/search?q=<query> where <query> is the words people actually use to find this challenge (URL-encode spaces as %20). Base the query on a hashtag or phrase you ACTUALLY saw in your web_search results; do NOT invent one. For example: https://www.tiktok.com/search?q=whisper%20challenge. Do NOT use tiktok.com/tag/ URLs: fabricated hashtags dead-end on an empty 'Couldn't find this hashtag' page.
+- reasoning: 1-2 sentences explaining why you chose this challenge and why it's trending.`;
+
+// Structured outputs (docs/plans/modern-claude-calls.md, D22): the reply must
+// match these, so required fields, category and difficulty values and the
+// array of proposals come from the API. validateChallenge and the duplicate
+// checks stay as a backstop.
+const CHALLENGE_SCHEMA = {
+  type: 'object',
+  properties: {
+    title: { type: 'string' },
+    description: { type: 'string' },
+    category: { type: 'string', enum: CATEGORIES },
+    difficulty: { type: 'string', enum: DIFFICULTIES },
+    emoji: { type: 'string' },
+    trendSource: { type: 'string' },
+    players: { type: 'string' },
+    timeEstimate: { type: 'string' },
+    exampleUrl: { type: 'string' },
+    reasoning: { type: 'string' },
+  },
+  required: [
+    'title', 'description', 'category', 'difficulty', 'emoji',
+    'trendSource', 'players', 'timeEstimate', 'exampleUrl', 'reasoning',
+  ],
+  additionalProperties: false,
+};
+const PROPOSALS_SCHEMA = {
+  type: 'object',
+  properties: { challenges: { type: 'array', items: CHALLENGE_SCHEMA } },
+  required: ['challenges'],
+  additionalProperties: false,
+};
+const REWRITES_SCHEMA = {
+  type: 'object',
+  properties: {
+    rewrites: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { title: { type: 'string' }, description: { type: 'string' } },
+        required: ['title', 'description'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['rewrites'],
+  additionalProperties: false,
+};
+
+// Claude Opus 5.5 researches and writes (D21): current web search with dynamic
+// filtering, adaptive thinking at effort high, refusal fallbacks. max_tokens
+// stays under the SDK's non-streaming ceiling (~21k).
+const RESEARCH_OPTIONS = {
+  model: 'claude-opus-5-5',
+  searchTool: 'web_search_20260209',
+  maxSearches: 3,
+  effort: 'high',
+  fallbacks: 'default',
+  maxTokens: 16000,
+};
+// Rewriting a description needs no search and less depth.
+const REWRITE_OPTIONS = {
+  model: 'claude-opus-5-5',
+  maxSearches: 0,
+  effort: 'medium',
+  fallbacks: 'default',
+  maxTokens: 8000,
+};
 
 function getSystemPrompt() {
   const today = new Date().toISOString().split('T')[0];
@@ -210,7 +278,7 @@ Time estimate guidelines — be realistic, include setup and cleanup:
 - Messy or multi-step challenges: 20-30 min
 - Complex challenges with prep: 30+ min
 
-You MUST return valid JSON matching the exact schema requested. Be creative and accurate.
+Be creative and accurate.
 
 ${getStyleGuideSection()}`;
 }
@@ -282,20 +350,22 @@ ${categoryHint}
 
 Search first, then give me a challenge that is genuinely trending in ${today.substring(0, 7)} — not something from a prior year.
 
-IMPORTANT: Your entire response must be ONLY a raw JSON object. No introduction, no explanation, no markdown, no code fences, no text before or after. Start your response with { and end with }.
-
-${CHALLENGE_JSON_SPEC}`;
+The challenge has these fields:
+${CHALLENGE_FIELD_GUIDE}`;
 
   console.log(`🤖 Generating challenge for week of ${weekOf} (${weekId})...\n`);
 
   let result;
   let styleFeedback = '';
+  let effort = RESEARCH_OPTIONS.effort;
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      result = await callClaude(prompt + styleFeedback, getSystemPrompt());
+      result = await callClaude(prompt + styleFeedback, getSystemPrompt(), { ...RESEARCH_OPTIONS, effort, schema: CHALLENGE_SCHEMA });
     } catch (err) {
       if (attempt < maxAttempts && err.message.startsWith('Failed to parse JSON')) {
+        // Cut off at max_tokens: think less on the next try rather than repeat it.
+        if (err.message.includes('max_tokens')) effort = 'medium';
         console.warn(`⚠️  JSON parse failed (attempt ${attempt}/${maxAttempts}), retrying...`);
         continue;
       }
@@ -326,7 +396,7 @@ Your previous description was:
 It broke these rules from the style guide:
 ${formatViolations(violations)}
 
-Keep the same challenge and rewrite the description so it passes. Respond with ONLY the raw JSON object again, starting with { and ending with }.`;
+Keep the same challenge and rewrite the description so it passes.`;
   }
 
   // Validate the result
@@ -395,10 +465,8 @@ ${hint ? `Martin asked for ideas around: "${hint}". Every challenge should fit t
 
 Search first, then give me challenges that are genuinely trending in ${today.substring(0, 7)} — not ones from a prior year.
 
-IMPORTANT: Your entire response must be ONLY a raw JSON array of ${count} objects. No introduction, no explanation, no markdown, no code fences, no text before or after. Start your response with [ and end with ].
-
-Each object in the array has this shape:
-${CHALLENGE_JSON_SPEC}`;
+Put the ${count} challenges in the "challenges" list, best first. Each has these fields:
+${CHALLENGE_FIELD_GUIDE}`;
 }
 
 // One batched rewrite for every proposal whose description breaks the style
@@ -418,11 +486,11 @@ Description: "${f.proposal.description}"
 It broke these rules:
 ${formatViolations(f.violations)}`).join('\n\n')}
 
-Respond with ONLY a raw JSON array of ${failing.length} objects, each {"title": "<the title exactly as given>", "description": "..."}. Start your response with [ and end with ].`;
+Put one entry per challenge in "rewrites", with the title exactly as given and the new description.`;
 
   let rewrites;
   try {
-    rewrites = await callClaude(prompt, getSystemPrompt(), { maxTokens: 4096, maxSearches: 0 });
+    rewrites = (await callClaude(prompt, getSystemPrompt(), { ...REWRITE_OPTIONS, schema: REWRITES_SCHEMA }))?.rewrites;
   } catch (err) {
     console.warn(`   Rewrite failed (${err.message.split('\n')[0]}); keeping the drafts.`);
     return proposals;
@@ -439,20 +507,23 @@ Respond with ONLY a raw JSON array of ${failing.length} objects, each {"title": 
 async function generateProposals({ count, weekOf, existing, alreadyProposed, hint }) {
   const prompt = buildProposalsPrompt({ count, weekOf, existing, alreadyProposed, hint });
   const maxAttempts = 3;
+  let effort = RESEARCH_OPTIONS.effort;
   let drafts;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      drafts = await callClaude(prompt, getSystemPrompt(), { maxTokens: 6000, maxSearches: 3 });
+      drafts = (await callClaude(prompt, getSystemPrompt(), { ...RESEARCH_OPTIONS, effort, schema: PROPOSALS_SCHEMA }))?.challenges;
     } catch (err) {
       if (attempt < maxAttempts && err.message.startsWith('Failed to parse JSON')) {
+        // Cut off at max_tokens: think less on the next try rather than repeat it.
+        if (err.message.includes('max_tokens')) effort = 'medium';
         console.warn(`⚠️  JSON parse failed (attempt ${attempt}/${maxAttempts}), retrying...`);
         continue;
       }
       throw err;
     }
     if (Array.isArray(drafts)) break;
-    if (attempt === maxAttempts) throw new Error('Claude did not return a JSON array of proposals.');
-    console.warn(`⚠️  Response was not a JSON array (attempt ${attempt}/${maxAttempts}), retrying...`);
+    if (attempt === maxAttempts) throw new Error('Claude did not return a list of proposals.');
+    console.warn(`⚠️  Response had no list of proposals (attempt ${attempt}/${maxAttempts}), retrying...`);
   }
 
   // Validate, normalize links and drop repeats, keeping the model's ranking.

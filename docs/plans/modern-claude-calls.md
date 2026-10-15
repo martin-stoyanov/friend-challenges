@@ -104,6 +104,6 @@ Branch: `modern-claude-and-read-as`, shared with `docs/plans/read-as-line.md`.
 
 | Step | Status | Commit |
 | --- | --- | --- |
-| 19 | done | (this commit) |
-| 20 | pending | |
+| 19 | done | 2a6b5fc |
+| 20 | done | (this commit) |
 | 21 | pending | |

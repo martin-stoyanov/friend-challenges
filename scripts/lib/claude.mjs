@@ -12,7 +12,9 @@ import Anthropic from '@anthropic-ai/sdk';
 
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const MODEL = 'claude-sonnet-4-6';
+// Defaults for a caller that sets nothing; every current caller sets its own.
+const MODEL = 'claude-opus-5-5';
+const SEARCH_TOOL = 'web_search_20260209';
 // Server-side refusal fallback: a declined request is re-run on the model
 // Anthropic recommends for that refusal category, inside the same call.
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
@@ -79,15 +81,15 @@ function describeApiError(err) {
  * Sends one prompt and returns the parsed JSON reply.
  *
  * Options:
- * - model (default claude-sonnet-4-6), maxTokens (default 2048);
+ * - model (default claude-opus-5-5), maxTokens (default 2048);
  * - maxSearches: web_search uses; 0 sends no tools; default 1;
  * - effort: output_config.effort (low | medium | high | xhigh | max);
  * - schema: a JSON schema the reply must follow (output_config.format);
  * - fallbacks: 'default' opts into server-side refusal fallbacks;
- * - searchTool: the web search tool version (default web_search_20250305);
+ * - searchTool: the web search tool version (default web_search_20260209);
  * - maxRetries (default 5) and timeoutMs (default 10 minutes per attempt);
  * - fetchImpl for tests (the SDK's fetch).
- * Left unset, these send exactly the request the generator always sent.
+ * Each call logs one line of usage (tokens in and out, stop reason).
  *
  * Throws "Failed to parse JSON…" when the reply has no usable JSON, including
  * a reply cut off at max_tokens; callers retry on that prefix.
@@ -99,7 +101,7 @@ export async function callClaude(prompt, systemPrompt, {
   effort,
   schema,
   fallbacks,
-  searchTool = 'web_search_20250305',
+  searchTool = SEARCH_TOOL,
   maxRetries = MAX_RETRIES,
   timeoutMs = TIMEOUT_MS,
   fetchImpl,
@@ -157,6 +159,9 @@ export async function callClaude(prompt, systemPrompt, {
     data = await post(resumed);
     content = [...content, ...(data.content ?? [])];
   }
+
+  const usage = data.usage ?? {};
+  console.log(`🧾 ${data.model ?? model}: ${usage.input_tokens ?? '?'} tokens in, ${usage.output_tokens ?? '?'} out, ${data.stop_reason}`);
 
   if (data.stop_reason === 'refusal') {
     throw new Error(`Claude declined the request: ${data.stop_details?.explanation ?? 'no explanation given'}`);

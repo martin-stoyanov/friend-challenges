@@ -28,15 +28,15 @@ test('extractJson reads a fence, bare JSON, or JSON after a line of preamble', (
   assert.equal(extractJson('[{"a":1}, {"b":'), undefined);
 });
 
-test('the default request matches what the generator always sent', async () => {
+test('the default request is Opus 5.5 with current web search, no extras', async () => {
   const { calls, fetchImpl } = fakeFetch([reply({ stop_reason: 'end_turn', content: [{ type: 'text', text: '{"ok":true}' }] })]);
   assert.deepEqual(await callClaude('prompt', 'system', { fetchImpl }), { ok: true });
   assert.equal(calls[0].url, 'https://api.anthropic.com/v1/messages');
   assert.deepEqual(calls[0].body, {
-    model: 'claude-sonnet-4-6',
+    model: 'claude-opus-5-5',
     max_tokens: 2048,
     system: 'system',
-    tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 1 }],
+    tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 1 }],
     messages: [{ role: 'user', content: 'prompt' }],
   });
 });
