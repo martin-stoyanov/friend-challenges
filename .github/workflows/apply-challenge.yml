@@ -62,8 +62,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
 
-      # The scripts use only Node built-ins, so there is no npm ci.
+      # The scripts call Claude through the Anthropic SDK. Only the runtime
+      # dependencies, and no install scripts: this job holds a token that can
+      # push to master, so it runs as little third-party code as it can.
+      - run: npm ci --omit=dev --ignore-scripts
       - name: Apply and push
         id: apply
         env:

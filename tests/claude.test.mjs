@@ -86,19 +86,25 @@ test('a reply cut off at max_tokens fails with the retryable parse error', async
   });
 });
 
-test('429 waits for retry-after and tries again; a 400 fails at once', async () => {
-  const waits = [];
-  const sleepImpl = async (ms) => { waits.push(ms); };
+test('the SDK retries a 429 after retry-after, five times at most; a 400 fails at once', async () => {
   const { calls, fetchImpl } = fakeFetch([
-    reply({ error: 'rate' }, 429, { 'retry-after': '7' }),
+    reply({ type: 'error', error: { type: 'rate_limit_error', message: 'slow down' } }, 429, { 'retry-after-ms': '5' }),
     reply({ stop_reason: 'end_turn', content: [{ type: 'text', text: '{}' }] }),
   ]);
-  await callClaude('p', 's', { fetchImpl, sleepImpl });
+  await callClaude('p', 's', { fetchImpl });
   assert.equal(calls.length, 2);
-  assert.deepEqual(waits, [7000]);
 
-  const bad = fakeFetch([reply({ error: 'bad' }, 400)]);
-  await assert.rejects(callClaude('p', 's', { fetchImpl: bad.fetchImpl, sleepImpl }), /Claude API error \(400\)/);
+  let tries = 0;
+  const always429 = async () => {
+    tries++;
+    return reply({ type: 'error', error: { type: 'rate_limit_error', message: 'slow down' } }, 429, { 'retry-after-ms': '1' });
+  };
+  await assert.rejects(callClaude('p', 's', { fetchImpl: always429 }), /Claude API error \(429\)/);
+  assert.equal(tries, 6, 'one try plus five retries');
+
+  const bad = fakeFetch([reply({ type: 'error', error: { type: 'invalid_request_error', message: 'bad' } }, 400)]);
+  await assert.rejects(callClaude('p', 's', { fetchImpl: bad.fetchImpl }), /Claude API error \(400\)/);
+  assert.equal(bad.calls.length, 1);
 });
 
 test('after two pauses the resume carries both paused segments, and text from all of them is read', async () => {
@@ -120,7 +126,7 @@ test('an Opus request carries model, effort, schema and fallbacks, with the beta
   const headersSeen = [];
   const calls = [];
   const fetchImpl = async (url, init) => {
-    headersSeen.push(init.headers);
+    headersSeen.push(new Headers(init.headers));
     calls.push(JSON.parse(init.body));
     return reply({
       stop_reason: 'end_turn',
@@ -143,19 +149,19 @@ test('an Opus request carries model, effort, schema and fallbacks, with the beta
     output_config: { effort: 'medium', format: { type: 'json_schema', schema } },
     fallbacks: 'default',
   });
-  assert.equal(headersSeen[0]['anthropic-beta'], 'server-side-fallback-2026-07-01');
+  assert.equal(headersSeen[0].get('anthropic-beta'), 'server-side-fallback-2026-07-01');
 });
 
 test('without the new options no beta header or output_config is sent', async () => {
   let headers;
   let body;
   const fetchImpl = async (_url, init) => {
-    headers = init.headers;
+    headers = new Headers(init.headers);
     body = JSON.parse(init.body);
     return reply({ stop_reason: 'end_turn', content: [{ type: 'text', text: '{}' }] });
   };
   await callClaude('p', 's', { fetchImpl });
-  assert.equal('anthropic-beta' in headers, false);
+  assert.equal(headers.get('anthropic-beta'), null);
   assert.equal('output_config' in body, false);
   assert.equal('fallbacks' in body, false);
 });
@@ -192,4 +198,36 @@ test('fallbacks only accepts the default form', async () => {
     callClaude('p', 's', { fetchImpl: async () => { throw new Error('should not be called'); }, fallbacks: [{ model: 'x' }] }),
     /fallbacks must be 'default'/
   );
+});
+
+test('the search tool version is a per-call option', async () => {
+  const { calls, fetchImpl } = fakeFetch([reply({ stop_reason: 'end_turn', content: [{ type: 'text', text: '{}' }] })]);
+  await callClaude('p', 's', { fetchImpl, searchTool: 'web_search_20260209', maxSearches: 3 });
+  assert.deepEqual(calls[0].body.tools, [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }]);
+});
+
+test('an API error reads once, with the request id and the cause kept', async () => {
+  const fetchImpl = async () => new Response(
+    JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: 'bad schema' } }),
+    { status: 400, headers: { 'content-type': 'application/json', 'request-id': 'req_123' } }
+  );
+  await assert.rejects(callClaude('p', 's', { fetchImpl }), (err) => {
+    assert.match(err.message, /^Claude API error \(400\): \{"type":"error"/);
+    assert.doesNotMatch(err.message, /\(400\): 400/);
+    assert.match(err.message, /\[request req_123\]$/);
+    assert.ok(err.cause, 'the SDK error is kept as the cause');
+    return true;
+  });
+});
+
+test('retries and the timeout are per call: the interpreter asks for two retries', async () => {
+  let tries = 0;
+  const always503 = async () => {
+    tries++;
+    return reply({ type: 'error', error: { type: 'overloaded_error', message: 'busy' } }, 503, { 'retry-after-ms': '1' });
+  };
+  await assert.rejects(callClaude('p', 's', { fetchImpl: always503, maxRetries: 2 }), /Claude API error \(503\)/);
+  assert.equal(tries, 3);
+  const { INTERPRET_OPTIONS } = await import('../scripts/lib/interpret.mjs');
+  assert.deepEqual([INTERPRET_OPTIONS.maxRetries, INTERPRET_OPTIONS.timeoutMs], [2, 90_000]);
 });

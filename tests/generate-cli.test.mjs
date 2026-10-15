@@ -38,7 +38,10 @@ globalThis.fetch = async (url, init) => {
     category: i % 2 ? 'friend' : 'couple', difficulty: 'easy', emoji: '🎨', trendSource: 'TikTok',
     players: '2', timeEstimate: '10-15 min', exampleUrl: 'https://www.tiktok.com/search?q=blind', reasoning: 'r',
   }));
-  return new Response(JSON.stringify({ stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(proposals) }] }));
+  return new Response(
+    JSON.stringify({ stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(proposals) }] }),
+    { headers: { 'content-type': 'application/json' } }
+  );
 };
 `;
 
@@ -83,6 +86,8 @@ function seedBatch(weekId, weekOf, createdAt) {
 beforeEach(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'generate-cli-'));
   fs.cpSync(path.join(ROOT, 'scripts'), path.join(dir, 'scripts'), { recursive: true });
+  // The scripts import the Anthropic SDK; the copy resolves it from the repo's install.
+  fs.symlinkSync(path.join(ROOT, 'node_modules'), path.join(dir, 'node_modules'), 'dir');
   fs.copyFileSync(path.join(ROOT, 'writing-style.md'), path.join(dir, 'writing-style.md'));
   fs.mkdirSync(path.join(dir, 'src', 'data'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'src', 'data', 'challenges.json'), '[]');

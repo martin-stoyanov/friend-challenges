@@ -49,6 +49,8 @@ function run(args, { event, eventName } = {}) {
 beforeEach(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'apply-cli-'));
   fs.cpSync(path.join(ROOT, 'scripts'), path.join(dir, 'scripts'), { recursive: true });
+  // The scripts import the Anthropic SDK; the copy resolves it from the repo's install.
+  fs.symlinkSync(path.join(ROOT, 'node_modules'), path.join(dir, 'node_modules'), 'dir');
   fs.copyFileSync(path.join(ROOT, 'writing-style.md'), path.join(dir, 'writing-style.md'));
   fs.mkdirSync(path.join(dir, 'src', 'data'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'src', 'data', 'challenges.json'), JSON.stringify([
@@ -165,7 +167,10 @@ globalThis.fetch = async (url, init) => {
     log({ to: 'claude', model: body.model, prompt: body.messages[0].content });
     const answer = answers[next++];
     if (!answer) throw new Error('no stubbed Claude answer left');
-    return new Response(JSON.stringify({ stop_reason: 'end_turn', content: [{ type: 'thinking', thinking: '', signature: 's' }, { type: 'text', text: JSON.stringify(answer) }] }));
+    return new Response(
+      JSON.stringify({ stop_reason: 'end_turn', content: [{ type: 'thinking', thinking: '', signature: 's' }, { type: 'text', text: JSON.stringify(answer) }] }),
+      { headers: { 'content-type': 'application/json' } }
+    );
   }
   if (String(url).includes('api.github.com')) {
     log({ to: 'github', url: String(url), body });

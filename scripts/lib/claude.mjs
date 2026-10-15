@@ -1,13 +1,14 @@
 /**
- * Anthropic Messages API call, optionally with the web_search tool, returning
- * the JSON value (object or array) the model was asked for.
+ * Every Claude call in the scripts goes through callClaude, on the official
+ * Anthropic SDK (docs/plans/modern-claude-calls.md, D20). It returns the JSON
+ * value (object or array) the model was asked for.
  *
- * Raw fetch rather than the SDK, as the generator always has been, so the
- * scripts need no dependency beyond Node. One client serves both callers: the
- * generator (Sonnet 4.6 with web search, the defaults) and the Telegram reply
- * interpreter (Opus 5.5 with a JSON schema; docs/plans/telegram-freeform-replies.md
- * D16).
+ * Callers: the generator (proposals and single challenges) and the Telegram
+ * reply interpreter (Claude Opus 5.5 with a JSON schema;
+ * docs/plans/telegram-freeform-replies.md, D16).
  */
+
+import Anthropic from '@anthropic-ai/sdk';
 
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -16,9 +17,9 @@ const MODEL = 'claude-sonnet-4-6';
 // Anthropic recommends for that refusal category, inside the same call.
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 // A server-side tool loop that runs long comes back as stop_reason "pause_turn";
-// re-sending the paused turn resumes it. Bounded so a stuck loop can't spin.
+// re-sending the paused turn resumes it (the SDK doesn't, for a plain call).
+// Bounded so a stuck loop can't spin.
 const MAX_CONTINUATIONS = 3;
-const MAX_RATE_LIMIT_RETRIES = 5;
 
 /**
  * Pulls the JSON out of a model reply: a fenced block if there is one, else
@@ -44,38 +45,34 @@ export function extractJson(text) {
   return undefined;
 }
 
-async function postWithRetries(body, apiKey, { fetchImpl, sleepImpl, extraHeaders = {} }) {
-  // Retry on rate limits (429) and transient server errors (5xx) with backoff.
-  // The org's per-minute token bucket refills over ~60s, so we wait it out
-  // rather than failing — this keeps unattended runs (e.g. the GitHub cron) reliable.
-  for (let attempt = 0; ; attempt++) {
-    const response = await fetchImpl('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        ...extraHeaders,
-      },
-      body,
-    });
+// The SDK retries 429s (following retry-after), 5xx and connection errors with
+// backoff. By default up to five retries (six tries in all), since the org's
+// per-minute token limit is tight and an unattended cron should wait it out.
+// A caller someone is waiting on (the Telegram interpreter) asks for fewer and
+// a shorter timeout instead.
+const MAX_RETRIES = 5;
+// The SDK's own default is 10 minutes per attempt. Non-streaming calls must
+// also keep max_tokens at or below about 21k, which every caller does.
+const TIMEOUT_MS = 10 * 60_000;
 
-    if (response.ok) return response.json();
+function createClient(apiKey, { fetchImpl, maxRetries, timeoutMs }) {
+  return new Anthropic({
+    apiKey,
+    maxRetries,
+    timeout: timeoutMs,
+    // 'info' puts one line per request and per retry in the log (no keys or
+    // headers), so a rate-limited run doesn't sit silent while it waits.
+    logLevel: 'info',
+    ...(fetchImpl && { fetch: fetchImpl }),
+  });
+}
 
-    const retryable = response.status === 429 || response.status >= 500;
-    if (!retryable || attempt >= MAX_RATE_LIMIT_RETRIES) {
-      const error = await response.text();
-      throw new Error(`Claude API error (${response.status}): ${error}`);
-    }
-
-    // Honor the server's retry-after (seconds) when present, else exponential backoff.
-    const retryAfter = Number(response.headers.get('retry-after'));
-    const waitMs = Number.isFinite(retryAfter) && retryAfter > 0
-      ? retryAfter * 1000
-      : Math.min(60_000, 2_000 * 2 ** attempt);
-    console.warn(`⏳ ${response.status} from API — waiting ${Math.round(waitMs / 1000)}s before retry (${attempt + 1}/${MAX_RATE_LIMIT_RETRIES})...`);
-    await sleepImpl(waitMs);
-  }
+/** An SDK error as one readable line, without the repeated status, keeping the cause. */
+function describeApiError(err) {
+  const detail = String(err.message ?? '').replace(new RegExp(`^${err.status ?? ''}\\s*`), '');
+  const requestId = err.requestID ? ` [request ${err.requestID}]` : '';
+  const cause = err.cause?.code ?? err.cause?.message;
+  return `Claude API error (${err.status ?? 'no status'}): ${detail}${cause ? ` (${cause})` : ''}${requestId}`;
 }
 
 /**
@@ -87,7 +84,9 @@ async function postWithRetries(body, apiKey, { fetchImpl, sleepImpl, extraHeader
  * - effort: output_config.effort (low | medium | high | xhigh | max);
  * - schema: a JSON schema the reply must follow (output_config.format);
  * - fallbacks: 'default' opts into server-side refusal fallbacks;
- * - fetchImpl/sleepImpl for tests.
+ * - searchTool: the web search tool version (default web_search_20250305);
+ * - maxRetries (default 5) and timeoutMs (default 10 minutes per attempt);
+ * - fetchImpl for tests (the SDK's fetch).
  * Left unset, these send exactly the request the generator always sent.
  *
  * Throws "Failed to parse JSON…" when the reply has no usable JSON, including
@@ -100,8 +99,10 @@ export async function callClaude(prompt, systemPrompt, {
   effort,
   schema,
   fallbacks,
-  fetchImpl = fetch,
-  sleepImpl = sleep,
+  searchTool = 'web_search_20250305',
+  maxRetries = MAX_RETRIES,
+  timeoutMs = TIMEOUT_MS,
+  fetchImpl,
 } = {}) {
   // Only the "default" form: the array form needs a different beta header.
   if (fallbacks !== undefined && fallbacks !== 'default') {
@@ -123,17 +124,25 @@ export async function callClaude(prompt, systemPrompt, {
     max_tokens: maxTokens,
     system: systemPrompt,
     ...(maxSearches > 0 && {
-      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: maxSearches }],
+      tools: [{ type: searchTool, name: 'web_search', max_uses: maxSearches }],
     }),
     messages: [{ role: 'user', content: prompt }],
     ...(Object.keys(outputConfig).length && { output_config: outputConfig }),
     ...(fallbacks && { fallbacks }),
   };
-  const post = (body) => postWithRetries(JSON.stringify(body), apiKey, {
-    fetchImpl,
-    sleepImpl,
-    extraHeaders: fallbacks ? { 'anthropic-beta': FALLBACK_BETA } : {},
-  });
+  const client = createClient(apiKey, { fetchImpl, maxRetries, timeoutMs });
+  const post = async (body) => {
+    try {
+      // fallbacks is a beta parameter, so it goes through the beta endpoint.
+      return fallbacks
+        ? await client.beta.messages.create({ ...body, betas: [FALLBACK_BETA] })
+        : await client.messages.create(body);
+    } catch (err) {
+      // Same message shape as before the SDK, for callers and logs.
+      if (err instanceof Anthropic.APIError) throw new Error(describeApiError(err), { cause: err });
+      throw err;
+    }
+  };
 
   let data = await post(request);
   // Everything the assistant has produced this turn, across pauses. Each resume

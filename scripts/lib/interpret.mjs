@@ -28,6 +28,10 @@ export const INTERPRET_OPTIONS = {
   maxTokens: 16000,
   effort: 'medium',
   fallbacks: 'default',
+  // Martin is waiting in the chat: a reading takes 2–9 seconds, so a call that
+  // hangs is cut at 90 seconds and retried twice, not left for half an hour.
+  timeoutMs: 90_000,
+  maxRetries: 2,
 };
 
 const MAX_QUESTION_LENGTH = 300;
