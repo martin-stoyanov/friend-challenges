@@ -47,15 +47,17 @@ export function extractJson(text) {
   return undefined;
 }
 
-// The SDK retries 429s (following retry-after), 5xx and connection errors with
-// backoff. By default up to five retries (six tries in all), since the org's
-// per-minute token limit is tight and an unattended cron should wait it out.
-// A caller someone is waiting on (the Telegram interpreter) asks for fewer and
-// a shorter timeout instead.
+// Until the response starts, the SDK retries 429s (following retry-after), 5xx
+// and connection errors with backoff. After that, callClaude retries a stream
+// that breaks off (an overloaded event, a dropped connection) or runs past its
+// deadline. By default up to five retries (six tries in all), since an
+// unattended cron should wait out a passing overload. A caller someone is
+// waiting on (the Telegram interpreter) asks for fewer and a shorter deadline.
 const MAX_RETRIES = 5;
-// The SDK's own default is 10 minutes per attempt. Non-streaming calls must
-// also keep max_tokens at or below about 21k, which every caller does.
+// The deadline for one try, stream included.
 const TIMEOUT_MS = 10 * 60_000;
+// Backoff before retrying a broken stream: 2s, 4s, 8s…
+const RETRY_DELAY_MS = 2_000;
 
 function createClient(apiKey, { fetchImpl, maxRetries, timeoutMs }) {
   return new Anthropic({
@@ -70,11 +72,32 @@ function createClient(apiKey, { fetchImpl, maxRetries, timeoutMs }) {
 }
 
 /** An SDK error as one readable line, without the repeated status, keeping the cause. */
-function describeApiError(err) {
+function describeApiError(err, streamRequestId) {
   const detail = String(err.message ?? '').replace(new RegExp(`^${err.status ?? ''}\\s*`), '');
-  const requestId = err.requestID ? ` [request ${err.requestID}]` : '';
+  const id = err.requestID ?? streamRequestId;
+  const requestId = id ? ` [request ${id}]` : '';
   const cause = err.cause?.code ?? err.cause?.message;
   return `Claude API error (${err.status ?? 'no status'}): ${detail}${cause ? ` (${cause})` : ''}${requestId}`;
+}
+
+/**
+ * The paused turn as it can be sent back. After a refusal fallback in the
+ * middle of the output, the blocks before the last `fallback` block are the
+ * declined model's: only its text and its finished server tool calls (a call
+ * with its result) can be echoed, not its thinking or an unanswered call.
+ * Everything from the fallback block on echoes as is.
+ */
+function echoable(content) {
+  const boundary = content.findLastIndex((block) => block.type === 'fallback');
+  if (boundary === -1) return content;
+  const before = content.slice(0, boundary);
+  const calls = new Set(before.filter((block) => block.type === 'server_tool_use').map((block) => block.id));
+  const answered = new Set(before.filter((block) => block.tool_use_id && calls.has(block.tool_use_id)).map((block) => block.tool_use_id));
+  const keep = (block) =>
+    block.type === 'text'
+    || (block.type === 'server_tool_use' && answered.has(block.id))
+    || (block.tool_use_id !== undefined && answered.has(block.tool_use_id));
+  return [...before.filter(keep), ...content.slice(boundary)];
 }
 
 /**
@@ -87,9 +110,12 @@ function describeApiError(err) {
  * - schema: a JSON schema the reply must follow (output_config.format);
  * - fallbacks: 'default' opts into server-side refusal fallbacks;
  * - searchTool: the web search tool version (default web_search_20260209);
- * - maxRetries (default 5) and timeoutMs (default 10 minutes per attempt);
- * - fetchImpl for tests (the SDK's fetch).
- * Each call logs one line of usage (tokens in and out, stop reason).
+ * - maxRetries (default 5) and timeoutMs (default 10 minutes per try, stream
+ *   included);
+ * - for tests: fetchImpl (the SDK's fetch) and retryDelayMs (the first backoff
+ *   before retrying a broken stream, default 2 seconds).
+ * Each call logs one line of usage (tokens in and out, web searches, stop
+ * reason), added up over every segment of a paused call.
  *
  * Throws "Failed to parse JSON…" when the reply has no usable JSON, including
  * a reply cut off at max_tokens; callers retry on that prefix.
@@ -104,6 +130,7 @@ export async function callClaude(prompt, systemPrompt, {
   searchTool = SEARCH_TOOL,
   maxRetries = MAX_RETRIES,
   timeoutMs = TIMEOUT_MS,
+  retryDelayMs = RETRY_DELAY_MS,
   fetchImpl,
 } = {}) {
   // Only the "default" form: the array form needs a different beta header.
@@ -134,19 +161,42 @@ export async function callClaude(prompt, systemPrompt, {
   };
   const client = createClient(apiKey, { fetchImpl, maxRetries, timeoutMs });
   const post = async (body) => {
-    try {
-      // fallbacks is a beta parameter, so it goes through the beta endpoint.
-      return fallbacks
-        ? await client.beta.messages.create({ ...body, betas: [FALLBACK_BETA] })
-        : await client.messages.create(body);
-    } catch (err) {
-      // Same message shape as before the SDK, for callers and logs.
-      if (err instanceof Anthropic.APIError) throw new Error(describeApiError(err), { cause: err });
-      throw err;
+    for (let attempt = 0; ; attempt++) {
+      // The SDK's timeout stops at the response headers, which a stream sends
+      // within seconds, so each try gets a deadline of its own.
+      const deadline = AbortSignal.timeout(timeoutMs);
+      // Streamed, always: a long call (web search at effort high) sends nothing
+      // back until it is done, and a connection that silent gets cut on the way
+      // (seen live: every attempt dropped after about 60 seconds). Events keep
+      // it alive. fallbacks is a beta parameter, so it goes through the beta
+      // endpoint.
+      const stream = fallbacks
+        ? client.beta.messages.stream({ ...body, betas: [FALLBACK_BETA] }, { signal: deadline })
+        : client.messages.stream(body, { signal: deadline });
+      try {
+        return await stream.finalMessage();
+      } catch (err) {
+        // An HTTP error status was already retried by the SDK. A stream that
+        // broke off after it started, or ran out of time, is retried here.
+        const broke = stream.response !== undefined && !(err instanceof Anthropic.APIError && err.status);
+        const reason = deadline.aborted ? `no answer within ${timeoutMs / 1000} seconds` : err.message;
+        if ((broke || deadline.aborted) && attempt < maxRetries) {
+          console.warn(`⚠️  Claude stream failed (${reason}); retrying (${attempt + 1}/${maxRetries})...`);
+          await sleep(retryDelayMs * 2 ** attempt);
+          continue;
+        }
+        if (deadline.aborted) throw new Error(`Claude API error (timeout): ${reason}`, { cause: err });
+        // Same message shape as before the SDK, for callers and logs.
+        if (err instanceof Anthropic.AnthropicError) {
+          throw new Error(describeApiError(err, stream.request_id), { cause: err });
+        }
+        throw err;
+      }
     }
   };
 
   let data = await post(request);
+  const responses = [data];
   // Everything the assistant has produced this turn, across pauses. Each resume
   // re-sends all of it, so no earlier search drops out of the history.
   let content = data.content ?? [];
@@ -154,14 +204,17 @@ export async function callClaude(prompt, systemPrompt, {
     console.warn(`⏸️  Search loop paused; resuming (${i + 1}/${MAX_CONTINUATIONS})...`);
     const resumed = {
       ...request,
-      messages: [request.messages[0], { role: 'assistant', content }],
+      messages: [request.messages[0], { role: 'assistant', content: echoable(content) }],
     };
     data = await post(resumed);
+    responses.push(data);
     content = [...content, ...(data.content ?? [])];
   }
 
-  const usage = data.usage ?? {};
-  console.log(`🧾 ${data.model ?? model}: ${usage.input_tokens ?? '?'} tokens in, ${usage.output_tokens ?? '?'} out, ${data.stop_reason}`);
+  // Every segment of a paused call is billed, so the line adds them up.
+  const total = (read) => responses.reduce((sum, response) => sum + (read(response.usage ?? {}) ?? 0), 0);
+  const segments = responses.length > 1 ? ` (${responses.length} segments)` : '';
+  console.log(`🧾 ${data.model ?? model}: ${total((u) => u.input_tokens)} tokens in, ${total((u) => u.output_tokens)} out, ${total((u) => u.server_tool_use?.web_search_requests)} web searches, ${data.stop_reason}${segments}`);
 
   if (data.stop_reason === 'refusal') {
     throw new Error(`Claude declined the request: ${data.stop_details?.explanation ?? 'no explanation given'}`);

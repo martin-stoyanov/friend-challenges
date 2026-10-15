@@ -22,9 +22,12 @@ Branch: `modern-claude-and-read-as`, shared with `docs/plans/read-as-line.md`.
   - `scripts/lib/claude.mjs` keeps its `callClaude(prompt, system, options)`
     interface, so callers barely change. Inside, it uses `@anthropic-ai/sdk`
     (`^0.134`) instead of hand-written `fetch`.
-  - The SDK's built-in retries replace the custom loop. They follow
-    `retry-after` on 429 and retry 5xx and connection errors. Five retries,
-    since the org's per-minute token limit is tight.
+  - Every call is streamed (since Step 21, after long calls were cut off).
+  - The SDK's built-in retries replace the custom loop until the response
+    starts. They follow `retry-after` on 429 and retry 5xx and connection
+    errors. After that, `callClaude` retries a stream that breaks off or runs
+    past its deadline (`timeoutMs` covers the whole stream). Five retries by
+    default, so an unattended cron waits out a passing overload.
   - This revises plan A's D1 ("no new dependencies") for this one dependency.
     The workflows that call Claude gain `npm ci`.
 - **D21 — The generator runs on Claude Opus 5.5 with current features:**
@@ -94,6 +97,39 @@ Branch: `modern-claude-and-read-as`, shared with `docs/plans/read-as-line.md`.
   - `scripts/eval-interpret.mjs` again, since the interpreter's client changed.
 
   Record what came back here.
+
+  **Results, 15 Oct 2026:**
+  - The first `--propose 4 --dry-run` failed. Every attempt at the research
+    call was cut off after about 60 seconds ("Connection error", six tries in
+    six minutes). A call with web search at effort `high` sends nothing back
+    until it is done, and a connection that quiet gets dropped on the way. Every
+    call is now streamed (`.stream().finalMessage()`). That also lifts the SDK's
+    cap on `max_tokens` for calls that aren't streamed. The tests fake the
+    stream with `tests/helpers/sse.mjs`.
+
+    The SDK retries and times out only until the response starts, which a
+    stream does within seconds. So `callClaude` itself now retries a stream
+    that breaks off (an overload mid-stream, a dropped connection), and each
+    try has a deadline over the whole stream. That keeps the interpreter's 90
+    seconds and two retries true.
+  - Streamed, `--propose 4 --dry-run --week 2026-10-26` took 74 seconds. The
+    research call was 90,457 tokens in and 4,277 out; the rewrite call was 5,636
+    in and 854 out. It returned four proposals: 🎃 Pumpkin Head Illusion,
+    🦇 Ramalama Costume Reveal, 💬 Answer in One Word and 🎬 Pray For Me Slow Mo.
+    Three descriptions went through the rewrite round. One still had no
+    sentence under 10 words afterwards, and its closer draft was kept, as
+    before.
+  - The single-challenge `--dry-run` took 77 seconds: 109,309 tokens in, 2,656
+    out, 🎃 The Pumpkin Head Illusion Challenge. Its reasoning says the searches
+    ran out after the first query, so the usage line now also counts web
+    searches.
+  - `scripts/eval-interpret.mjs`: 24/24 read as expected, at 2–8 seconds and
+    about 7,000 tokens in per message.
+  - At Opus 5.5's prices ($4 / $20 per million tokens), a batch or a single
+    challenge costs about $0.50 and a free-form message about 3 cents. Search
+    results count as input, which is most of the research call's tokens.
+  - The key's Opus 5.5 limit is 10 million input tokens a minute. The 30,000 a
+    minute that throttled backfills was Sonnet 4.6's.
 - Docs:
   - `AUTOMATION_PLAN.md`: models and costs;
   - `README.md`: the SDK dependency;
@@ -105,5 +141,5 @@ Branch: `modern-claude-and-read-as`, shared with `docs/plans/read-as-line.md`.
 | Step | Status | Commit |
 | --- | --- | --- |
 | 19 | done | 2a6b5fc |
-| 20 | done | (this commit) |
-| 21 | pending | |
+| 20 | done | 5e7e912 |
+| 21 | done | (this commit) |

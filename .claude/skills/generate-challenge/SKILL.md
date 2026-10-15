@@ -13,6 +13,7 @@ one generated directly instead, or to preview proposals (`--propose --dry-run`).
 
 ## Prerequisites
 - `ANTHROPIC_API_KEY` must be available (stored in `keys.md` locally or as env var).
+- Dependencies installed (`npm install`): the script calls Claude Opus 5.5 with web search through `@anthropic-ai/sdk`. Each run, a dry run or a `--propose` preview, takes a minute or two and costs about $0.50 (up to about $1.50 when a description breaks the style guide and the call is re-run), so don't re-run one just to look again.
 - **WARNING**: Do NOT `source keys.md` — it contains a command that runs the script. Use `grep` to extract the key.
 - Read `writing-style.md` at the repo root before judging or editing any generated description. It is the source of truth for card copy, and the script pastes it into its own system prompt.
 

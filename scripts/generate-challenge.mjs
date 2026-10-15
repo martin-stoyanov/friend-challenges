@@ -234,8 +234,7 @@ const REWRITES_SCHEMA = {
 };
 
 // Claude Opus 5.5 researches and writes (D21): current web search with dynamic
-// filtering, adaptive thinking at effort high, refusal fallbacks. max_tokens
-// stays under the SDK's non-streaming ceiling (~21k).
+// filtering, adaptive thinking at effort high, refusal fallbacks.
 const RESEARCH_OPTIONS = {
   model: 'claude-opus-5-5',
   searchTool: 'web_search_20260209',
@@ -724,8 +723,8 @@ async function main() {
       // Add to running list so next iteration avoids duplicating this one
       currentExisting.unshift(challenge);
     }
-    // Space out backfill requests to stay under the per-minute token limit.
-    // callClaude already retries on 429, but pausing up front avoids burning retries.
+    // A short gap between backfilled weeks. It dates from Sonnet's 30k tokens a
+    // minute; Opus 5.5's limit is far higher, and callClaude retries a 429 anyway.
     if (backfill && i < weeks.length - 1) {
       await sleep(20_000);
     }

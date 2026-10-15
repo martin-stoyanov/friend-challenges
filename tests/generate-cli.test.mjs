@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { getCurrentMonday, getNextMonday, getWeekId } from '../scripts/lib/dates.mjs';
 import { appendBatch, createProposals } from '../scripts/lib/proposals.mjs';
 
@@ -16,8 +16,10 @@ const upcoming = { weekOf: getNextMonday(), weekId: getWeekId(getNextMonday()) }
 let dir;
 
 // Each Claude call returns fresh titles, so "more" never collides with a batch.
+const SSE_HELPER = pathToFileURL(path.join(ROOT, 'tests', 'helpers', 'sse.mjs')).href;
 const STUB = `
 import fs from 'node:fs';
+import { sseResponse } from '${SSE_HELPER}';
 let call = 0;
 globalThis.fetch = async (url, init) => {
   const body = JSON.parse(init.body);
@@ -44,10 +46,7 @@ globalThis.fetch = async (url, init) => {
   if (wanted.rewrites) {
     const titles = [...body.messages[0].content.matchAll(/^\\d+\\. (The .+ Challenge)$/gm)].map((m) => m[1]);
     const rewrites = titles.map((title) => ({ title, description: 'Rewritten clean. One of you describes a photo while the other draws it blind, with no peeking allowed.' }));
-    return new Response(
-      JSON.stringify({ stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({ rewrites }) }] }),
-      { headers: { 'content-type': 'application/json' } }
-    );
+    return sseResponse({ stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({ rewrites }) }] });
   }
   const proposals = [0, 1, 2, 3].map((i) => ({
     // Letters only: the duplicate check ignores digits.
@@ -60,10 +59,7 @@ globalThis.fetch = async (url, init) => {
   }));
   // Answer in the shape the request's schema asks for.
   const answer = wanted.challenges ? { challenges: proposals } : proposals[0];
-  return new Response(
-    JSON.stringify({ stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(answer) }] }),
-    { headers: { 'content-type': 'application/json' } }
-  );
+  return sseResponse({ stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(answer) }] });
 };
 `;
 
@@ -303,7 +299,7 @@ test('proposals are researched by Opus 5.5 with current web search and a schema,
   assert.deepEqual(Object.keys(claude.output_config.format.schema.properties), ['challenges']);
   assert.deepEqual(claude.output_config.format.schema.properties.challenges.items.properties.category.enum, ['friend', 'couple', 'both']);
   assert.equal(claude.fallbacks, 'default');
-  assert.ok(claude.max_tokens <= 21_000, 'under the SDK non-streaming ceiling');
+  assert.equal(claude.max_tokens, 16000);
   assert.doesNotMatch(claude.prompt, /ONLY a raw JSON|Start your response with/);
   assert.match(claude.prompt, /- exampleUrl: a TikTok SEARCH URL/);
 });

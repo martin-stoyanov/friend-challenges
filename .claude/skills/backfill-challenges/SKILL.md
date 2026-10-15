@@ -11,6 +11,7 @@ The upcoming Monday is normally picked by Martin on Telegram (see `AUTOMATION_PL
 
 ## Prerequisites
 - `ANTHROPIC_API_KEY` must be available (stored in `keys.md` locally or as env var).
+- Dependencies installed (`npm install`): the script calls Claude Opus 5.5 with web search through `@anthropic-ai/sdk`.
 - **WARNING**: Do NOT `source keys.md` — it contains a command that runs the script. Use `grep` to extract the key.
 - Read `writing-style.md` at the repo root before judging or editing any generated description. It is the source of truth for card copy, and the script pastes it into its own system prompt.
 
@@ -48,5 +49,7 @@ git add src/data/challenges.json && git commit -m "🔥 Backfill challenges" && 
 ## Challenge Schema
 Each generated challenge includes: `id`, `weekOf`, `title`, `description` (written to `writing-style.md`), `category` (friend|couple|both), `difficulty` (easy|medium|hard), `emoji`, `trendSource`, `players`, `timeEstimate`, `exampleUrl` (TikTok search link — format: `https://www.tiktok.com/search?q=<query>`).
 
-## Rate Limits
-The Anthropic API may rate-limit if generating many challenges at once. If you see 429 errors, wait 60 seconds and retry.
+## Cost and Rate Limits
+Each missing week is one Claude Opus 5.5 call with web search: about $0.50 and a minute or two, with 20 seconds between weeks. When a description breaks the style guide, that week's call runs again (up to three times), so a week can cost up to about $1.50. The dry run costs the same as the real run. Before a large backfill, tell the user the range: weeks × $0.50 to weeks × $1.50, twice that with the dry run.
+
+A 429 or a server error is retried (following `retry-after`), and so is a reply that breaks off or takes too long. The key's Opus 5.5 limit is 10 million input tokens a minute. An API error that still reaches you means five retries failed: wait a minute and run it again.

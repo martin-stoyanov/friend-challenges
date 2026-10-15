@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { appendBatch, createProposals, markPicked } from '../scripts/lib/proposals.mjs';
 import { formatDateLocal, getCurrentMonday, getNextMonday, getWeekId } from '../scripts/lib/dates.mjs';
 
@@ -156,8 +156,10 @@ test('the live week says so in its confirmation', () => {
 
 // Claude answers come from STUB_CLAUDE (a JSON array, used in order); every
 // Telegram and GitHub call is logged to STUB_LOG.
+const SSE_HELPER = pathToFileURL(path.join(ROOT, 'tests', 'helpers', 'sse.mjs')).href;
 const MESSAGE_STUB = `
 import fs from 'node:fs';
+import { sseResponse } from '${SSE_HELPER}';
 const answers = JSON.parse(process.env.STUB_CLAUDE || '[]');
 let next = 0;
 const log = (entry) => fs.appendFileSync(process.env.STUB_LOG, JSON.stringify(entry) + '\\n');
@@ -167,10 +169,7 @@ globalThis.fetch = async (url, init) => {
     log({ to: 'claude', model: body.model, prompt: body.messages[0].content });
     const answer = answers[next++];
     if (!answer) throw new Error('no stubbed Claude answer left');
-    return new Response(
-      JSON.stringify({ stop_reason: 'end_turn', content: [{ type: 'thinking', thinking: '', signature: 's' }, { type: 'text', text: JSON.stringify(answer) }] }),
-      { headers: { 'content-type': 'application/json' } }
-    );
+    return sseResponse({ stop_reason: 'end_turn', content: [{ type: 'thinking', thinking: '', signature: 's' }, { type: 'text', text: JSON.stringify(answer) }] });
   }
   if (String(url).includes('api.github.com')) {
     log({ to: 'github', url: String(url), body });
