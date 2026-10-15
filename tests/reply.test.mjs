@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseBody, parseUpdate, readTag } from '../scripts/lib/reply.mjs';
-import { formatProposal } from '../scripts/lib/telegram.mjs';
+import { parseBody, parseUpdate, readQuestionTag, readTag } from '../scripts/lib/reply.mjs';
+import { formatProposal, questionTag } from '../scripts/lib/telegram.mjs';
 
 const ctx = { upcomingWeekId: '2026-w43' };
 const CHAT = { id: 1234 };
@@ -28,19 +28,28 @@ test('the more button asks for another batch of that week', () => {
   assert.equal(parseUpdate(tap(undefined), ctx).type, 'ignore');
 });
 
-test('a reply to a proposal targets it, and the whole text is the description', () => {
-  const text = "Put on headphones and read your partner's lips.\nNo cheating with subtitles.";
+test('a reply to a proposal with text goes to Claude, with the proposal and the text verbatim', () => {
+  const text = "Put on headphones and read your partner's lips.\nNo cheating with subtitles.  ";
   const result = parseUpdate(replyTo(text), ctx);
-  assert.equal(result.type, 'pick');
-  assert.equal(result.weekId, '2026-w42', 'the replied-to week, not the upcoming one');
-  assert.equal(result.n, 3);
-  assert.equal(result.source, 'reply');
-  assert.deepEqual(result.overrides, { description: text });
+  assert.deepEqual(result, {
+    type: 'freeform',
+    weekId: '2026-w42',
+    replyN: 3,
+    replyText: proposalText(3, '2026-w42'),
+    text,
+    chatId: 1234,
+  });
 });
 
-test('a reply that starts with a number keeps the number in the description', () => {
+test('a reply that starts with a number is prose too, not a pick', () => {
   const text = '2 people, one pair of headphones.';
-  assert.deepEqual(parseUpdate(replyTo(text), ctx).overrides, { description: text });
+  const result = parseUpdate(replyTo(text), ctx);
+  assert.deepEqual([result.type, result.replyN, result.text], ['freeform', 3, text]);
+});
+
+test('in a reply, field lines alone stay in the exact format', () => {
+  const result = parseUpdate(replyTo('title: The Mirror Challenge\nemoji: 🪞'), ctx);
+  assert.deepEqual([result.type, result.n, result.overrides], ['pick', 3, { title: 'The Mirror Challenge', emoji: '🪞' }]);
 });
 
 test('a bare number in reply to a proposal picks that number in the same week', () => {
@@ -48,35 +57,45 @@ test('a bare number in reply to a proposal picks that number in the same week', 
   assert.deepEqual([result.weekId, result.n, result.overrides], ['2026-w42', 4, {}]);
 });
 
-test('in a reply, a number alone on the first line picks it and the rest is the body', () => {
-  const result = parseUpdate(replyTo('2\nRead lips only.\nemoji: 👄'), ctx);
-  assert.deepEqual([result.weekId, result.n, result.overrides], [
-    '2026-w42', 2, { emoji: '👄', description: 'Read lips only.' },
-  ]);
+test('in a reply, a number on its own line with only field lines is exact; with prose it is for Claude', () => {
+  const exact = parseUpdate(replyTo('2\nemoji: 👄'), ctx);
+  assert.deepEqual([exact.type, exact.weekId, exact.n, exact.overrides], ['pick', '2026-w42', 2, { emoji: '👄' }]);
+  const prose = parseUpdate(replyTo('2\nRead lips only.\nemoji: 👄'), ctx);
+  assert.deepEqual([prose.type, prose.weekId, prose.replyN], ['freeform', '2026-w42', 3]);
 });
 
-test('a description that starts with a number is not mistaken for a pick', () => {
+test('a description that starts with a number is not mistaken for a pick: Claude reads it', () => {
   const result = parseUpdate(message('2 people face each other and whisper.'), ctx);
-  assert.equal(result.type, 'invalid');
-  assert.match(result.reason, /proposal number/);
+  assert.deepEqual([result.type, result.weekId, result.replyN, result.replyText], ['freeform', '2026-w43', null, null]);
 });
 
-test('a leading number picks for the upcoming week; the rest is the body', () => {
-  for (const [text, description] of [
-    ['2', undefined],
-    ['#2', undefined],
-    ['2.', undefined],
-    ['2: Wear the headphones backwards.', 'Wear the headphones backwards.'],
-    ['2) Wear the headphones backwards.', 'Wear the headphones backwards.'],
-    ['2\nLine one.\n\nLine two.', 'Line one.\n\nLine two.'],
-    ['2\r\nLine one.\r\ntitle: The Mirror Challenge', 'Line one.'],
+test('a leading number alone, or with field lines, picks for the upcoming week', () => {
+  for (const [text, overrides] of [
+    ['2', {}],
+    ['#2', {}],
+    ['2.', {}],
+    ['2\ntitle: The Mirror Challenge', { title: 'The Mirror Challenge' }],
+    ['2\r\ncategory: couple', { category: 'couple' }],
   ]) {
     const result = parseUpdate(message(text), ctx);
     assert.equal(result.type, 'pick', text);
     assert.equal(result.weekId, '2026-w43', text);
     assert.equal(result.n, 2, text);
     assert.equal(result.source, 'number', text);
-    assert.equal(result.overrides.description, description, text);
+    assert.deepEqual(result.overrides, overrides, text);
+  }
+});
+
+test('a leading number followed by prose goes to Claude, verbatim', () => {
+  for (const text of [
+    '2: Wear the headphones backwards.',
+    '2) Wear the headphones backwards.',
+    '2\nLine one.\n\nLine two.',
+    '2\r\nLine one.\r\ntitle: The Mirror Challenge',
+    '2, but make it couples-only',
+  ]) {
+    const result = parseUpdate(message(text), ctx);
+    assert.deepEqual([result.type, result.weekId, result.replyN, result.text], ['freeform', '2026-w43', null, text], text);
   }
 });
 
@@ -144,12 +163,11 @@ test('bad field values are refused with a reason', () => {
   }
 });
 
-test('text with no number and no proposal to reply to is refused', () => {
+test('text with no number and no proposal to reply to goes to Claude for the upcoming week', () => {
   const result = parseUpdate(message('The second one please'), ctx);
-  assert.equal(result.type, 'invalid');
-  assert.match(result.reason, /proposal number/);
-  // "2nd" is not "#2".
-  assert.equal(parseUpdate(message('2nd one'), ctx).type, 'invalid');
+  assert.deepEqual([result.type, result.weekId, result.text], ['freeform', '2026-w43', 'The second one please']);
+  // "2nd" is not "#2", but Claude can read it.
+  assert.equal(parseUpdate(message('2nd one'), ctx).type, 'freeform');
   // A reply to a message with no tag (the footer, say) falls back to the leading number.
   const toFooter = message('3', { reply_to_message: { message_id: 8, chat: CHAT, text: 'How to answer' } });
   assert.deepEqual([parseUpdate(toFooter, ctx).weekId, parseUpdate(toFooter, ctx).n], ['2026-w43', 3]);
@@ -182,4 +200,47 @@ test('readTag reads only the whole last line', () => {
   assert.equal(readTag('#1 · 2026-w40\nthen other text'), null);
   assert.equal(readTag('mentions #12 · 2026-w43 mid-line'), null);
   assert.equal(readTag(undefined), null);
+});
+
+test("any reply to the bot's question goes to Claude, even a bare number, with the question as context", () => {
+  const question = 'Did you mean the kitchen one (#2) or the guessing one (#1)?\n\nYou wrote: "the food one"\n? · 2026-w42';
+  for (const text of ['2', 'the kitchen one', '/help me']) {
+    const result = parseUpdate(message(text, { reply_to_message: { message_id: 6, chat: CHAT, text: question } }), ctx);
+    if (text.startsWith('/')) {
+      assert.equal(result.type, 'help', text);
+      continue;
+    }
+    assert.deepEqual(
+      [result.type, result.weekId, result.replyN, result.replyText, result.text],
+      ['freeform', '2026-w42', null, question, text],
+      text
+    );
+  }
+});
+
+test('readQuestionTag reads only a whole last line', () => {
+  assert.equal(readQuestionTag('Which one?\n? · 2026-w42'), '2026-w42');
+  assert.equal(readQuestionTag('Which one? · 2026-w42'), null);
+  assert.equal(readQuestionTag('? · 2026-w42\nmore text'), null);
+  assert.equal(readQuestionTag(undefined), null);
+});
+
+test('prose with a malformed field line still goes to Claude; a lone bad field is answered at once', () => {
+  for (const text of ['2\nMake it for families.\ncategory: family', 'Read my lips.\nDifficulty: the hard part is not laughing.']) {
+    assert.equal(parseUpdate(message(text), ctx).type, 'freeform', text);
+    assert.equal(parseUpdate(replyTo(text), ctx).type, 'freeform', `reply: ${text}`);
+  }
+  const bad = parseUpdate(message('2\ncategory: family'), ctx);
+  assert.equal(bad.type, 'invalid');
+  assert.match(bad.reason, /category has to be one of/);
+});
+
+test('a number with a trailing space before field lines stays exact', () => {
+  const result = parseUpdate(message('2 \ncategory: couple'), ctx);
+  assert.deepEqual([result.type, result.n, result.overrides], ['pick', 2, { category: 'couple' }]);
+});
+
+test('questionTag and readQuestionTag agree', () => {
+  assert.equal(readQuestionTag(`Which one?\n${questionTag('2026-w42')}`), '2026-w42');
+  assert.equal(readTag(`Which one?\n${questionTag('2026-w42')}`), null, 'a question is not a proposal');
 });

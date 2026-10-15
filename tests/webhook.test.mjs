@@ -81,19 +81,43 @@ test('a Pick tap starts apply-challenge.yml with string inputs and answers with 
   assert.equal(calls.length, 2);
 });
 
-test('a reply with a description dispatches it verbatim and reacts with 👍', async () => {
+test('a reply with prose goes to the apply workflow verbatim, with what it replied to, and gets a 👍', async () => {
   const { calls, handle } = setup();
   const body = 'Read my lips — no sound at all.\ntitle: The Lip Read Challenge';
-  await handle(post(text(body, { reply_to_message: { message_id: 4, chat: CHAT, text: 'The Whisper Challenge\n#3 · 2026-w43' } })));
+  const proposal = 'The Whisper Challenge\n#3 · 2026-w43';
+  await handle(post(text(body, { reply_to_message: { message_id: 4, chat: CHAT, text: proposal } })));
   const github = calls.find((c) => c.to === 'github');
+  assert.match(github.url, /\/actions\/workflows\/apply-challenge\.yml\/dispatches$/);
   assert.deepEqual(github.body.inputs, {
     week_id: '2026-w43',
-    pick: '3',
-    overrides: JSON.stringify({ title: 'The Lip Read Challenge', description: 'Read my lips — no sound at all.' }),
-    source: 'reply',
+    message: body,
+    reply_n: '3',
+    reply_text: proposal,
+    source: 'message',
   });
   const reaction = calls.find((c) => c.method === 'setMessageReaction');
   assert.deepEqual(reaction.body, { chat_id: '1234', message_id: 77, reaction: [{ type: 'emoji', emoji: '👍' }] });
+  assert.equal(calls.some((c) => c.method === 'answerCallbackQuery'), false);
+});
+
+test('prose that replies to nothing goes for the upcoming week, with empty reply inputs', async () => {
+  const { calls, handle } = setup();
+  await handle(post(text('  the kitchen one, but for friends\n')));
+  assert.deepEqual(calls[0].body.inputs, {
+    week_id: '2026-w43',
+    message: '  the kitchen one, but for friends\n',
+    reply_n: '',
+    reply_text: '',
+    source: 'message',
+  });
+});
+
+test('the replied-to text is capped at 1500 characters by whole graphemes', async () => {
+  const { calls, handle } = setup();
+  const long = `${'a'.repeat(1499)}👨‍👩‍👧 tail\n#3 · 2026-w43`;
+  await handle(post(text('make it shorter', { reply_to_message: { message_id: 4, chat: CHAT, text: long } })));
+  assert.equal(calls[0].body.inputs.reply_text, 'a'.repeat(1499));
+  assert.equal(calls[0].body.inputs.reply_n, '3');
 });
 
 test('a bare number picks for the upcoming week', async () => {
@@ -156,12 +180,12 @@ test('a GitHub timeout is reported as maybe-done, and never quotes the error or 
   assert.doesNotMatch(notice.text, /Bearer|GH|boom/);
 });
 
-test('/help sends the guide; nonsense gets the reason; junk bodies are dropped with 200', async () => {
+test('/help sends the guide; a bad field gets the reason; junk bodies are dropped with 200', async () => {
   const { calls, handle } = setup();
   await handle(post(text('/help')));
   assert.match(calls[0].body.text, /How to answer/);
-  await handle(post(text('the second one')));
-  assert.match(calls[1].body.text, /Start with the proposal number/);
+  await handle(post(text('2\ncategory: family')));
+  assert.match(calls[1].body.text, /category has to be one of/);
   assert.equal((await handle(post('not json'))).status, 200);
   assert.equal((await handle(post({ update_id: 3, edited_message: { chat: CHAT, text: '2' } }))).status, 200);
   assert.equal(calls.length, 2);

@@ -58,5 +58,6 @@ The script has **smart category selection**: if no `--category` flag is passed, 
 - `--week YYYY-MM-DD` — override the target week date
 - `--propose [N] --dry-run` — preview N proposals (default 4) without saving or sending them. A live batch is refused outside GitHub Actions: it must be committed or its Pick buttons point at nothing, so send one from Actions → Propose Challenges.
 - `--more` — with `--propose`, another batch for the same week
+- `--hint "…"` — with `--propose`, a theme for the ideas, e.g. `--hint "something with music"`
 
 Generating the coming week here means that Thursday's run sends no proposals for it (it tells Martin why).

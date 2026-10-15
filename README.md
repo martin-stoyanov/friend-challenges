@@ -72,7 +72,8 @@ npm run lint:copy
 - `scripts/generate-challenge.mjs` — AI challenge generation, direct or as proposals (`--propose`)
 - `scripts/apply-choice.mjs` — applies a pick, or the Sunday fallback, to `challenges.json`
 - `scripts/telegram-setup.mjs`, `scripts/telegram-notify.mjs` — bot setup and notices
-- `scripts/lib/` — shared pieces: dates, Claude calls, Telegram, the reply parser, proposals
+- `scripts/lib/` — shared pieces: dates, Claude calls, Telegram, the reply parser, the free-form reply interpreter, proposals
+- `scripts/eval-interpret.mjs` — live accuracy check of the interpreter on `tests/fixtures/interpret-messages.json`
 - `scripts/copy-style.mjs` — writing-style.md checker (used by the generator and `npm run lint:copy`)
 - `netlify/functions/telegram-webhook.mjs` — receives Telegram taps and replies
 - `proposals/` — one file per week: the ideas sent and the pick

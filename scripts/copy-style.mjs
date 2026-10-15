@@ -148,7 +148,8 @@ export function formatViolations(violations) {
 /**
  * Descriptions Martin wrote himself over Telegram, by week id. They are
  * published exactly as written (docs/plans/telegram-weekly-proposals.md, D5),
- * and the week's proposals file records them as pick.overrides.description.
+ * and the week's proposals file records them as pick.overrides.description,
+ * with pick.descriptionBy 'martin' (or no descriptionBy, on older picks).
  */
 export function readHandWrittenDescriptions(dir = PROPOSALS_DIR) {
   const byWeek = new Map();
@@ -164,7 +165,10 @@ export function readHandWrittenDescriptions(dir = PROPOSALS_DIR) {
       throw new Error(`proposals/${name} is not valid JSON: ${err.message}`);
     }
     const description = file?.pick?.overrides?.description;
-    if (typeof description === 'string') byWeek.set(weekId, description);
+    // Only his own words: a description Claude wrote on request is linted like
+    // any generated copy. Picks from before descriptionBy existed were his.
+    const by = file?.pick?.descriptionBy ?? 'martin';
+    if (typeof description === 'string' && by === 'martin') byWeek.set(weekId, description);
   }
   return byWeek;
 }

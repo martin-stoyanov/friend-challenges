@@ -21,6 +21,10 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const PROPOSALS_DIR = path.join(__dirname, '..', '..', 'proposals');
 
+// The longest theme a "more" request can carry (plan D17), shared by the
+// interpreter that produces it and the generator that uses it.
+export const MAX_HINT_LENGTH = 200;
+
 // The fields a proposal carries: the challenge record minus id/weekOf, plus
 // the model's reasoning. Anything else the model returns is dropped.
 const PROPOSAL_FIELDS = [

@@ -1,0 +1,305 @@
+# Current challenges
+
+Snapshot of `src/data/challenges.json` taken on 14 Oct 2026: 33 challenges, newest first
+(13 for couples, 4 for friends, 16 for everyone).
+This file does not update itself; the JSON file is the source of truth.
+
+| Week of | Id | Challenge | For | Difficulty | Players | Time |
+| --- | --- | --- | --- | --- | --- | --- |
+| 12 Oct 2026 | 2026-w42 | 🙅 The No-Hands Challenge | couples | medium | 2 | 15-20 min |
+| 17 Aug 2026 | 2026-w34 | 🤖 The ChatGPT Script Challenge | friends | easy | 3+ | 10-15 min |
+| 10 Aug 2026 | 2026-w33 | 🤸 The Flexibility Challenge | everyone | medium | 2+ | 10-15 min |
+| 3 Aug 2026 | 2026-w32 | ☝️ The Put A Finger Down Challenge | couples | easy | 2 | 10-15 min |
+| 27 Jul 2026 | 2026-w31 | 👗 The Guess My Outfit Challenge | everyone | medium | 2 | 20-30 min |
+| 20 Jul 2026 | 2026-w30 | 🌀 The Swinging Couple Challenge | couples | medium | 2 | 10-15 min |
+| 13 Jul 2026 | 2026-w29 | 🪧 The How Well Do You Know Me Challenge | couples | easy | 2 | 15-20 min |
+| 6 Jul 2026 | 2026-w28 | 🎭 The Voice Reaction Challenge | everyone | easy | 2 | 10-15 min |
+| 29 Jun 2026 | 2026-w27 | 😂 The Tickle Endurance Challenge | everyone | easy | 2 | 10-15 min |
+| 22 Jun 2026 | 2026-w26 | 🚢 The Titanic Challenge | couples | medium | 2 | 10-15 min |
+| 15 Jun 2026 | 2026-w25 | 🌾 The Couple Flour Challenge | couples | medium | 2 | 20-30 min |
+| 8 Jun 2026 | 2026-w24 | ⚽ The Squeeze the Ball Challenge | friends | easy | 3+ | 10-15 min |
+| 1 Jun 2026 | 2026-w23 | 🕵️ The Imposter Challenge | everyone | medium | 3+ | 20-30 min |
+| 25 May 2026 | 2026-w22 | 🎯 The Couples Favorites Challenge | couples | easy | 2 | 10-15 min |
+| 18 May 2026 | 2026-w21 | 🔗 The Word Chain Challenge | friends | easy | 3+ | 10-15 min |
+| 11 May 2026 | 2026-w20 | 🏋️ The Couple Lift Challenge | couples | medium | 2 | 10-15 min |
+| 4 May 2026 | 2026-w19 | 👆 The Most Likely To Challenge | friends | easy | 3+ | 10-15 min |
+| 27 Apr 2026 | 2026-w18 | 🧦 The Sock Challenge | couples | medium | 2 | 10-15 min |
+| 20 Apr 2026 | 2026-w17 | 🛒 The Grocery Store Challenge | couples | medium | 2 | 30-45 min |
+| 13 Apr 2026 | 2026-w16 | 🧘 The Yoga Pose Challenge | everyone | medium | 2 | 10-15 min |
+| 6 Apr 2026 | 2026-w15 | 🔤 The Alphabet Challenge | everyone | easy | 2 | 10-15 min |
+| 30 Mar 2026 | 2026-w14 | 📱 The Passing the Phone Challenge | everyone | easy | 3+ | 10-15 min |
+| 23 Mar 2026 | 2026-w13 | 🎨 The Color Hunt Challenge | everyone | easy | 2+ | 45-60 min |
+| 16 Mar 2026 | 2026-w12 | 🌡️ The Temperature Challenge | everyone | medium | 2+ | 10-15 min |
+| 9 Mar 2026 | 2026-w11 | 🤥 The Lying Challenge | couples | easy | 2 | 10-15 min |
+| 3 Mar 2026 | 2026-w10 | 💄 The Blindfold Makeup Challenge | everyone | medium | 2 | 20-30 min |
+| 24 Feb 2026 | 2026-w09 | 🗣️ The Accent Challenge | everyone | easy | 2+ | 15-20 min |
+| 17 Feb 2026 | 2026-w08 | 🎧 The Whisper Challenge | everyone | easy | 2 | 15 min |
+| 10 Feb 2026 | 2026-w07 | 🫣 The Blindfold Taste Test Challenge | couples | easy | 2 | 15-20 min |
+| 3 Feb 2026 | 2026-w06 | 🎨 The Body Part Drawing Challenge | everyone | easy | 2+ | 10-15 min |
+| 27 Jan 2026 | 2026-w05 | 💋 The Chapstick Challenge | couples | easy | 2 | 10-15 min |
+| 20 Jan 2026 | 2026-w04 | 🤲 The Not My Arms Challenge | everyone | medium | 2 | 15 min |
+| 13 Jan 2026 | 2026-w03 | 🎵 The Finish The Lyrics Challenge | everyone | medium | 2+ | 15-20 min |
+
+## 🙅 The No-Hands Challenge
+
+Week of 12 Oct 2026 (`2026-w42`) · couples · medium · 2 players · 15-20 min · trend: TikTok
+
+Pick something from the kitchen: a snack, a piece of fruit, cup, etc. The two of you have to move it from one side of the table to the other without using your hands at all.. If it drops, you start over from that spot. The catch: you're not allowed to plan your technique out loud before you try it.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=no%20hands%20challenge%20couple)
+
+## 🤖 The ChatGPT Script Challenge
+
+Week of 17 Aug 2026 (`2026-w34`) · friends · easy · 3+ players · 10-15 min · trend: TikTok (trending August 2026)
+
+Ask ChatGPT for a short dramatic scene with a part for everyone in the room, and don't read it before you hit record. Hand out the roles cold, then perform it exactly as written, deadpan, with no rehearsal and no quietly improving the line you got stuck with. Whatever the robot wrote is now your dialogue. The stranger the prompt you give it, the more you'll regret this.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=chatgpt%20script%20challenge%20friends)
+
+## 🤸 The Flexibility Challenge
+
+Week of 10 Aug 2026 (`2026-w33`) · everyone · medium · 2+ players · 10-15 min · trend: TikTok
+
+Line up side by side and try the same stretches at the same time: seated forward fold, standing toe-touch, side bend, each one a little meaner than the last. No mat, no props. Keep the camera back far enough that both of you stay in frame, because the comparison is the entire point. One of you folds in half like a lawn chair. The other negotiates with their hamstrings somewhere north of the knee.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=flexibility%20couple%20challenge)
+
+## ☝️ The Put A Finger Down Challenge
+
+Week of 3 Aug 2026 (`2026-w32`) · couples · easy · 2 players · 10-15 min · trend: TikTok
+
+Both of you hold up ten fingers while one person reads from a list of 'put a finger down if...' statements. Put a finger down if you've hidden a snack from your partner. Put a finger down if you've read the other person's texts. You both drop at the same moment, so neither of you gets to wait and see how honest the other one is being. Film it split-screen. The hands tell you one story and the faces tell you another.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=put%20a%20finger%20down%20couple%20challenge%202026)
+
+## 👗 The Guess My Outfit Challenge
+
+Week of 27 Jul 2026 (`2026-w31`) · everyone · medium · 2 players · 20-30 min · trend: TikTok and Instagram Reels
+
+Raid your partner's closet and build them a full outfit out of clothes they already own, down to the shoes, while they wait in another room. No preview, no vetoes. They put on whatever you left out and don't see themselves until the last piece is on. Film the walk to the mirror. Anything they bought and never wore is fair game, and yes, they will notice.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Guess%20My%20Outfit%20Challenge)
+
+## 🌀 The Swinging Couple Challenge
+
+Week of 20 Jul 2026 (`2026-w30`) · couples · medium · 2 players · 10-15 min · trend: TikTok
+
+One of you clasps your hands together and holds them low, so your arms make a hoop in front of you. Your partner's job is to get their entire body through that hoop, one leg at a time, ducking their head under without either of you breaking the grip. It looks like a two-second trick. It is not. Whoever's holding the hoop usually ends up on the floor with them.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Swinging%20Couple%20Challenge)
+
+## 🪧 The How Well Do You Know Me Challenge
+
+Week of 13 Jul 2026 (`2026-w29`) · couples · easy · 2 players · 15-20 min · trend: TikTok
+
+Sit back to back with a paddle each: your own face on one side, your partner's on the other. Someone reads a question out loud, like who's messier or who's more likely to cry at a movie, and on three you both hold your paddle up so the camera catches both answers at once. Matching answers move things along nicely. Mismatched ones turn into a debate neither of you scheduled. Keep a tally so there's a final score to argue about.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=How%20Well%20Do%20You%20Know%20Me%20Challenge)
+
+## 🎭 The Voice Reaction Challenge
+
+Week of 6 Jul 2026 (`2026-w28`) · everyone · easy · 2 players · 10-15 min · trend: TikTok
+
+Pick a phrase with some range to it. 'Are you serious?' is a good one. Your partner has to fire it back at you four times in a row, flirty, then disgusted, then shocked, then completely deadpan, with no pause to reset in between. Whoever's holding the camera reacts to each version as it lands and cuts those reactions in afterward. Most attempts collapse somewhere around disgusted.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Voice%20Reaction%20Challenge)
+
+## 😂 The Tickle Endurance Challenge
+
+Week of 29 Jun 2026 (`2026-w27`) · everyone · easy · 2 players · 10-15 min · trend: TikTok
+
+One person sits down and commits to being a statue while the other gets thirty seconds to break them. No laughing, no wriggling out of range, no blocking with your arms, and any sound at all ends the round early. Then swap and see if you can do better. Whoever holds out longest wins absolutely nothing except the right to bring it up later.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Tickle%20Endurance%20Challenge)
+
+## 🚢 The Titanic Challenge
+
+Week of 22 Jun 2026 (`2026-w26`) · couples · medium · 2 players · 10-15 min · trend: TikTok
+
+Set the pose up first: one of you standing behind with your hands on their waist, the other out front with both arms wide, doing the full 'I'm flying' bit. Now hold it. The person in back narrates the scene in their most committed movie-trailer voice while the one in front tries to keep leaning. Falling ends the round. So does laughing, and laughing is what happens first.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Titanic%20Challenge)
+
+## 🌾 The Couple Flour Challenge
+
+Week of 15 Jun 2026 (`2026-w25`) · couples · medium · 2 players · 20-30 min · trend: TikTok
+
+Put a bowl of flour between you and start quizzing each other on the relationship. Every wrong answer earns a handful straight to the face, with no warning and no negotiating. Take turns asking so nobody stays clean. Do this outside, or somewhere with a floor you aren't emotionally attached to, because flour gets absolutely everywhere.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Couple%20Flour%20Challenge)
+
+## ⚽ The Squeeze the Ball Challenge
+
+Week of 8 Jun 2026 (`2026-w24`) · friends · easy · 3+ players · 10-15 min · trend: TikTok
+
+Everyone sits in a circle on the floor and passes a squeeze ball around using only knees and feet. Hands are banned, and grabbing for it on instinct counts as using them. Drop the ball and you're out of the circle. The handoff is where it always falls apart, because getting a ball from your ankles to somebody else's ankles is not a skill anyone has practiced. Last one still in wins.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Squeeze%20the%20Ball%20Challenge)
+
+## 🕵️ The Imposter Challenge
+
+Week of 1 Jun 2026 (`2026-w23`) · everyone · medium · 3+ players · 20-30 min · trend: TikTok
+
+Pick a theme and have everyone dress for it so the group reads as one unit on camera. Open the Imposter Who? app and let it deal out the roles: everyone gets the same word except one person, who has to bluff through the whole round without getting caught. Film it with text overlays so people watching can play along at home. Save the reveal for the very end. Nobody ever suspects the loudest one.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Imposter%20Challenge)
+
+## 🎯 The Couples Favorites Challenge
+
+Week of 25 May 2026 (`2026-w22`) · couples · easy · 2 players · 10-15 min · trend: TikTok (also spreading to Instagram Reels)
+
+Write down your partner's favorites while they write down yours: food, color, show, biggest pet peeve. No peeking and no fishing for hints. Reveal at the same time and let the person being described grade each answer out loud. Count the misses as you go. Years together helps a lot less than either of you is expecting.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Couples%20Favorites%20Challenge)
+
+## 🔗 The Word Chain Challenge
+
+Week of 18 May 2026 (`2026-w21`) · friends · easy · 3+ players · 10-15 min · trend: TikTok (trending under #wordchain and #wordchallenge)
+
+Go around the group saying words that connect to whatever was said last. Ocean, blue, sky, bird, you get the idea. Repeat a word or stall longer than three seconds and you're out of the round. Before each new round the group picks a theme to make life harder, like food only or celebrity names only, and that's when people start defending 'connections' that make no sense at all. Last one standing takes it.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Word%20Chain%20Challenge)
+
+## 🏋️ The Couple Lift Challenge
+
+Week of 11 May 2026 (`2026-w20`) · couples · medium · 2 players · 10-15 min · trend: TikTok
+
+One of you tries to lift the other onto the couch from a standing start. The person being lifted goes completely limp: no helping, no hopping, no grabbing on at the last second to make it look better. Dead weight is the whole challenge. Swap after every attempt and see who actually gets airborne. Move the coffee table first.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Couple%20Lift%20Challenge)
+
+## 👆 The Most Likely To Challenge
+
+Week of 4 May 2026 (`2026-w19`) · friends · easy · 3+ players · 10-15 min · trend: TikTok (hashtag #mostlikelytochallenge)
+
+Someone reads a prompt out loud. Most likely to text the wrong person, most likely to fall asleep at a party, most likely to start a group chat nobody asked for. On three, everyone points at whoever fits. Whoever collects the most fingers has to sit there on camera and either accept the title or mount a defense. Then the list moves along to the next reader.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Most%20Likely%20To%20Challenge)
+
+## 🧦 The Sock Challenge
+
+Week of 27 Apr 2026 (`2026-w18`) · couples · medium · 2 players · 10-15 min · trend: TikTok
+
+Sit facing each other with your legs tangled together. Hands are out of this entirely, so it's feet and toes only. Peel both of your partner's socks off before they manage to get yours. It turns into a slow-motion leg wrestle within seconds and neither of you comes out of it looking graceful. Wear socks you don't mind stretching.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Sock%20Challenge)
+
+## 🛒 The Grocery Store Challenge
+
+Week of 20 Apr 2026 (`2026-w17`) · couples · medium · 2 players · 30-45 min · trend: TikTok
+
+Split up at the door with $20 each and shop for the other person's ideal meal. No texting, no accidental meetups in the snack aisle. Meet at the checkout and show your basket before either of you gets to explain the reasoning behind it. Then cook both meals and eat them. Whoever read the other person right gets to mention it for the rest of the week.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Grocery%20Store%20Challenge)
+
+## 🧘 The Yoga Pose Challenge
+
+Week of 13 Apr 2026 (`2026-w16`) · everyone · medium · 2 players · 10-15 min · trend: TikTok
+
+Pick a pose that looks fine in a photo and isn't in real life: single-leg squat, deep hamstring stretch, or a partner balance where you're both propping each other up. Hold it head to head and see who wobbles out first. Or take turns while the other one coaches from the floor, which is its own kind of help. Each round the pose gets harder. Confidence going in has no bearing on how it goes.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Yoga%20Pose%20Challenge)
+
+## 🔤 The Alphabet Challenge
+
+Week of 6 Apr 2026 (`2026-w15`) · everyone · easy · 2 players · 10-15 min · trend: TikTok
+
+Sit facing each other and hold a conversation one word at a time, starting at A. Your word has to begin with the next letter and still make some kind of sense after whatever your partner just said. Blank on a letter and the run is over. Start again from A. Getting past Q with the conversation still intact counts as a win in most households.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Alphabet%20Challenge)
+
+## 📱 The Passing the Phone Challenge
+
+Week of 30 Mar 2026 (`2026-w14`) · everyone · easy · 3+ players · 10-15 min · trend: TikTok
+
+Start recording and say 'I'm passing the phone to someone who...', then finish it with something that could only describe one person in the room. Hand the phone over. They do the same for whoever's next, and it keeps going until everyone has been called out. Keep the camera rolling the whole time and post it uncut as one continuous chain. Nobody finds out how they're being described until the phone is already in their hand.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Passing%20the%20Phone%20Challenge)
+
+## 🎨 The Color Hunt Challenge
+
+Week of 23 Mar 2026 (`2026-w13`) · everyone · easy · 2+ players · 45-60 min · trend: TikTok (also spreading on Instagram Reels and X)
+
+Assign each person a color and keep your own to yourself. Head outside with an hour on the clock and photograph everything you find in it: storefronts, flowers, someone's jacket, a badly parked car. Build a 3x3 grid from your nine best shots, post both grids side by side, and let the comments decide whose city looked better. Fair warning. Once you're locked onto a color you can't unsee it for the rest of the day.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Color%20Hunt%20Challenge)
+
+## 🌡️ The Temperature Challenge
+
+Week of 16 Mar 2026 (`2026-w12`) · everyone · medium · 2+ players · 10-15 min · trend: TikTok (For You Page)
+
+Pick a number between 1 and 100 and don't say it out loud. That number is a temperature, and you have to get it across using nothing but your body: shivering, melting, whatever sells it. No words, no mouthing, no props. Your partner calls out numbers until they land close, and then you tell them what it actually was. Play a few rounds and whoever guessed nearest overall takes it.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Temperature%20Challenge)
+
+## 🤥 The Lying Challenge
+
+Week of 9 Mar 2026 (`2026-w11`) · couples · easy · 2 players · 10-15 min · trend: TikTok
+
+Sit across from each other and start making statements: things about yourself, shared memories, wild claims, some true and some completely invented. Your partner reads your face and calls it. They get exactly one yes/no question before they have to commit, so it had better be a good one. Swap when you run out of material. Most correct calls wins, and the ones you got wrong will resurface later.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Lying%20Challenge)
+
+## 💄 The Blindfold Makeup Challenge
+
+Week of 3 Mar 2026 (`2026-w10`) · everyone · medium · 2 players · 20-30 min · trend: TikTok
+
+Blindfold one person. Hand them the whole makeup bag and let them do the other person's full face, foundation through lipstick, with no peeking and no directions from the chair. The one getting made up can talk, just not about what's currently happening to their eyebrows. Film the process and not only the reveal, because watching someone hunt for the right brush by feel is most of the video.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Blindfold%20Makeup%20Challenge)
+
+## 🗣️ The Accent Challenge
+
+Week of 24 Feb 2026 (`2026-w09`) · everyone · easy · 2+ players · 15-20 min · trend: TikTok
+
+Take turns reading random sentences in whatever accent the other person calls out. British, Australian, Southern, plus one nobody in the room has ever actually heard. Every attempt gets rated on the spot by whoever isn't talking, thumbs up or thumbs down, no appeals. Most thumbs up wins the round. Australian is where it usually collapses.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Accent%20Challenge)
+
+## 🎧 The Whisper Challenge
+
+Week of 17 Feb 2026 (`2026-w08`) · everyone · easy · 2 players · 15 min · trend: YouTube / TikTok
+
+One person puts headphones on with the music up loud enough to drown out the room. The other whispers a phrase from across the table, mouthing it clearly and no louder than that. The listener guesses from the mouth shapes alone and has to say every attempt out loud, wrong ones included. That's the part to film. Wrong guesses tend to arrive with total confidence.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Whisper%20Challenge)
+
+## 🫣 The Blindfold Taste Test Challenge
+
+Week of 10 Feb 2026 (`2026-w07`) · couples · easy · 2 players · 15-20 min · trend: TikTok / YouTube Shorts
+
+Blindfold your partner, then raid the kitchen for the worst combinations you can put together: something too spicy, something sweet dumped on something savory, a snack they haven't eaten since they were a kid. One bite, one guess. No second tries and no hints. Point the camera at their face rather than the plate, because the face gets there before the guess does.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Blindfold%20Taste%20Test%20Challenge)
+
+## 🎨 The Body Part Drawing Challenge
+
+Week of 3 Feb 2026 (`2026-w06`) · everyone · easy · 2+ players · 10-15 min · trend: Instagram Reels
+
+One person draws a head, the next draws a torso, someone else takes the legs, and nobody gets to see what came before. Keep the sheets face down until everyone has finished. Then line them up and tape the whole thing together. The proportions never survive assembly. Frame it if it goes badly enough.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Body%20Part%20Drawing%20Challenge)
+
+## 💋 The Chapstick Challenge
+
+Week of 27 Jan 2026 (`2026-w05`) · couples · easy · 2 players · 10-15 min · trend: TikTok
+
+Buy a handful of flavored chapsticks and keep them out of sight, because two is just a coin flip. One of you puts one on while the other looks away, and then they have to guess the flavor by kissing you. Wrong guesses go on the record. Swap and go again until you run out of flavors.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Chapstick%20Challenge)
+
+## 🤲 The Not My Arms Challenge
+
+Week of 20 Jan 2026 (`2026-w04`) · everyone · medium · 2 players · 15 min · trend: YouTube / TikTok
+
+One person stands behind the other and slips their arms through, so from the front it reads as one person with borrowed hands. Now give those hands a job. Feeding them a sandwich, doing their makeup, pouring a drink the front person then has to drink. The person in front can talk the entire time but can't help. The person in back can't see a single thing they're doing.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Not%20My%20Arms%20Challenge)
+
+## 🎵 The Finish The Lyrics Challenge
+
+Week of 13 Jan 2026 (`2026-w03`) · everyone · medium · 2+ players · 15-20 min · trend: TikTok / Spotify
+
+Queue up a song and hit pause right before the line everyone thinks they know. Your friend has to sing the next bit from memory, the actual words, no humming through the parts they've been getting wrong for years. A point for every one they land. Run a whole playlist and total it up at the end. Everyone walks into this one far too confident.
+
+[Examples on TikTok](https://www.tiktok.com/search?q=Finish%20The%20Lyrics%20Challenge)

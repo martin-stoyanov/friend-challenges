@@ -4,7 +4,9 @@ import {
   applyPick,
   changedFields,
   fallbackAction,
+  parseMessageEvent,
   parsePickEvent,
+  PICK_SOURCES,
   validateOverrides,
 } from '../scripts/lib/apply.mjs';
 import { appendBatch, createProposals, markPicked } from '../scripts/lib/proposals.mjs';
@@ -256,4 +258,40 @@ test('a confirmation stays under the limit with real style warnings on a hostile
   const { text } = formatConfirmation({ challenge, n: 1, weekId: '2026-w43', changed: changedFields(overrides), violations });
   assert.ok(text.length <= MAX_MESSAGE_LENGTH, `length ${text.length}`);
   assert.equal(readTag(text).n, 1);
+});
+
+test('parseMessageEvent keeps the message exactly and checks the rest', () => {
+  assert.deepEqual(
+    parseMessageEvent({ week_id: '2026-w43', message: '  the kitchen one\n', reply_n: '2', reply_text: 'Which one?' }),
+    { weekId: '2026-w43', message: '  the kitchen one\n', replyN: 2, replyText: 'Which one?' }
+  );
+  assert.deepEqual(parseMessageEvent({ week_id: '2026-w43', message: 'x', reply_n: '', reply_text: '' }), {
+    weekId: '2026-w43', message: 'x', replyN: null, replyText: null,
+  });
+  assert.match(parseMessageEvent({ week_id: '../x', message: 'x' }).error, /not a week id/);
+  assert.match(parseMessageEvent({ week_id: '2026-w43', message: '   ' }).error, /no message/);
+  assert.match(parseMessageEvent({ week_id: '2026-w43', message: 'x'.repeat(4097) }).error, /too long/);
+  assert.match(parseMessageEvent({ week_id: '2026-w43', message: 'x', reply_n: 'two' }).error, /not a proposal number/);
+});
+
+test('applyPick records who wrote the description now on the card', () => {
+  const byClaude = applyPick({
+    challenges: [], proposals: file(), weekId: '2026-w43', n: 2, now: NOW,
+    overrides: { description: 'Written for him.' }, source: 'message', descriptionBy: 'claude',
+  });
+  assert.equal(byClaude.proposals.pick.descriptionBy, 'claude');
+
+  // A later change to another field keeps the description and its author.
+  const titled = applyPick({
+    challenges: byClaude.challenges, proposals: byClaude.proposals, weekId: '2026-w43', n: 2, now: NOW,
+    overrides: { title: 'The Mirror Challenge' }, source: 'message',
+  });
+  assert.deepEqual([titled.overrides.description, titled.proposals.pick.descriptionBy], ['Written for him.', 'claude']);
+
+  // His own text defaults to his; no description means no author.
+  const his = applyPick({ challenges: [], proposals: file(), weekId: '2026-w43', n: 1, now: NOW, overrides: { description: 'Mine.' }, source: 'reply' });
+  assert.equal(his.proposals.pick.descriptionBy, 'martin');
+  const none = applyPick({ challenges: [], proposals: file(), weekId: '2026-w43', n: 1, now: NOW, source: 'button' });
+  assert.equal('descriptionBy' in none.proposals.pick, false);
+  assert.ok(PICK_SOURCES.includes('message'));
 });

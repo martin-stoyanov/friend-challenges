@@ -47,7 +47,7 @@ const MAX_LENGTHS = {
 const WEEK_ID = /^\d{4}-w\d{2}$/;
 
 // Where a pick came from. Stored in the proposals file and shown nowhere else.
-export const PICK_SOURCES = ['button', 'reply', 'number', 'manual', 'fallback'];
+export const PICK_SOURCES = ['button', 'reply', 'number', 'message', 'manual', 'fallback'];
 
 // A payload value quoted back in an error, cut short so a junk value can't
 // flood the chat.
@@ -89,7 +89,28 @@ export function changedFields(overrides = {}) {
 }
 
 /** Sources that mean the pick came from Martin's Telegram chat. */
-export const TELEGRAM_SOURCES = ['button', 'reply', 'number'];
+export const TELEGRAM_SOURCES = ['button', 'reply', 'number', 'message'];
+
+const MAX_MESSAGE_LENGTH = 4096; // Telegram's own limit
+const MAX_REPLY_TEXT_LENGTH = 1500; // what the webhook forwards
+
+/**
+ * A free-form message for Claude from a workflow_dispatch's inputs
+ * (docs/plans/telegram-freeform-replies.md, Step 13), or { error }:
+ *   week_id, message, reply_n (a number or empty), reply_text (or empty).
+ * The message is kept exactly as sent.
+ */
+export function parseMessageEvent(inputs = {}) {
+  const { week_id: weekId, message, reply_n: replyN = '', reply_text: replyText = '' } = inputs;
+  if (typeof weekId !== 'string' || !WEEK_ID.test(weekId)) return { error: `${quote(weekId)} is not a week id like 2026-w43.` };
+  if (typeof message !== 'string' || !message.trim()) return { error: 'There is no message to read.' };
+  if (message.length > MAX_MESSAGE_LENGTH) return { error: 'That message is too long to read.' };
+  if (replyN !== '' && !/^\d{1,3}$/.test(String(replyN))) return { error: `${quote(replyN)} is not a proposal number.` };
+  if (typeof replyText !== 'string' || replyText.length > MAX_REPLY_TEXT_LENGTH * 2) {
+    return { error: 'The replied-to text is not usable.' };
+  }
+  return { weekId, message, replyN: replyN === '' ? null : Number(replyN), replyText: replyText || null };
+}
 
 /**
  * The pick request from a workflow_dispatch event's inputs, or { error }.
@@ -139,10 +160,15 @@ export function parsePickEvent(eventName, event) {
  * ones on top, so replying to a confirmation with a new description doesn't
  * undo a title changed before. A different number starts fresh.
  *
+ * `descriptionBy` says who wrote a description in `overrides`: 'martin' (the
+ * default; his text, used as written) or 'claude' (written on his request).
+ * It is recorded with the pick, and only Martin's own text is exempt from
+ * failing npm run lint:copy (docs/plans/telegram-freeform-replies.md, D14).
+ *
  * Only the live week and later can change. Old Pick buttons stay in the chat
  * forever, and an archived card should not change because one got tapped.
  */
-export function applyPick({ challenges, proposals, weekId, n, overrides: given = {}, source, now = new Date() }) {
+export function applyPick({ challenges, proposals, weekId, n, overrides: given = {}, source, descriptionBy, now = new Date() }) {
   if (!proposals) return { error: `Nothing was proposed for ${weekId}, so there is no #${n} to pick.` };
   if (proposals.weekOf < getCurrentMonday(now)) {
     return { error: `${weekId} is in the archive now. Picks can only change this week's challenge or a later one.` };
@@ -156,8 +182,14 @@ export function applyPick({ challenges, proposals, weekId, n, overrides: given =
   const problems = validateOverrides(given);
   if (problems.length) return { error: `${problems.join('; ')}.` };
 
-  const earlier = proposals.pick?.n === n ? proposals.pick.overrides ?? {} : {};
+  const samePick = proposals.pick?.n === n;
+  const earlier = samePick ? proposals.pick.overrides ?? {} : {};
   const overrides = { ...earlier, ...given };
+  // Who wrote the description now on the card: whoever just changed it, or
+  // whoever wrote the one carried over from the earlier pick.
+  const author = 'description' in given
+    ? descriptionBy ?? 'martin'
+    : samePick ? proposals.pick.descriptionBy : undefined;
   const merged = { ...proposal, ...overrides };
   merged.exampleUrl = overrides.exampleUrl ?? toTikTokSearchUrl(proposal.exampleUrl, merged.title);
   const challenge = buildChallengeRecord(merged, weekId, proposals.weekOf);
@@ -169,7 +201,12 @@ export function applyPick({ challenges, proposals, weekId, n, overrides: given =
     proposal,
     overrides,
     challenges: upsertChallenge(challenges, challenge),
-    proposals: markPicked(proposals, { n, source, overrides }, now),
+    proposals: markPicked(proposals, {
+      n,
+      source,
+      overrides,
+      ...(overrides.description !== undefined && author && { descriptionBy: author }),
+    }, now),
   };
 }
 

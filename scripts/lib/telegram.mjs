@@ -106,6 +106,55 @@ export function proposalTag(n, weekId) {
   return `#${n} · ${weekId}`;
 }
 
+/**
+ * The tag line that ends a clarifying question from the bot. Any reply to it
+ * goes to Claude, so the answer is read together with the question
+ * (docs/plans/telegram-freeform-replies.md, D15).
+ */
+export function questionTag(weekId) {
+  return `? · ${weekId}`;
+}
+
+// How much of his message a question quotes back. Question plus quote plus tag
+// stay under the 1500 characters the webhook forwards when he replies.
+const QUOTED_MESSAGE_LIMIT = 1_000;
+const QUOTE_INTRO = 'You wrote:';
+// Marks a quote that had to be cut. A cut quote is still context for Claude,
+// but never counts as his exact words (a description could end mid-word).
+const QUOTE_CUT = '[…cut short]';
+
+/**
+ * A clarifying question (D15): the question, what he wrote, and the question
+ * tag, so his reply is read with both. Plain text, escaped.
+ */
+export function formatQuestion({ question, message, weekId }) {
+  const quote = clipGraphemes(message, QUOTED_MESSAGE_LIMIT);
+  return {
+    text: [
+      // One line, so nothing the question says can pass for the quote below.
+      `🤔 ${escapeHtml(question.replace(/\s*\n\s*/g, ' '))}`,
+      '',
+      QUOTE_INTRO,
+      escapeHtml(quote),
+      ...(quote.length < message.length ? [QUOTE_CUT] : []),
+      questionTag(weekId),
+    ].join('\n'),
+  };
+}
+
+/**
+ * What he wrote, read back out of a question's text (the inverse of
+ * formatQuestion), or null when the text isn't one of the bot's questions or
+ * the quote was cut short.
+ */
+export function quotedMessageFromQuestion(text) {
+  const lines = (text ?? '').split('\n');
+  if (lines[2] !== QUOTE_INTRO || !/^\? · \d{4}-w\d{2}$/.test(lines.at(-1) ?? '')) return null;
+  const quote = lines.slice(3, -1);
+  if (quote.at(-1) === QUOTE_CUT) return null;
+  return quote.join('\n') || null;
+}
+
 /** "Mon 19 Oct" for a YYYY-MM-DD weekOf, read as a local date. */
 export function formatWeekLabel(weekOf) {
   return new Date(`${weekOf}T00:00:00`).toLocaleDateString('en-GB', {
@@ -167,11 +216,15 @@ export function formatProposal(proposal, weekId) {
   };
 }
 
-/** The first message of a batch. A later batch for the same week says "more". */
-export function formatHeader(weekId, weekOf, count, { more = false } = {}) {
+/**
+ * The first message of a batch. A later batch for the same week says "more",
+ * and a batch asked for with a theme names it.
+ */
+export function formatHeader(weekId, weekOf, count, { more = false, hint = null } = {}) {
   const noun = count === 1 ? 'idea' : 'ideas';
+  const theme = hint ? ` around "${escapeHtml(hint)}"` : '';
   return {
-    text: `🗓️ <b>${count} ${more ? 'more ' : ''}${noun} for the week of ${escapeHtml(formatWeekLabel(weekOf))}</b> (${escapeHtml(weekId)})`,
+    text: `🗓️ <b>${count} ${more ? 'more ' : ''}${noun}${theme} for the week of ${escapeHtml(formatWeekLabel(weekOf))}</b> (${escapeHtml(weekId)})`,
   };
 }
 
@@ -180,8 +233,8 @@ export function replyGuideText() {
   return [
     '<b>How to answer</b>',
     '• Tap <b>Pick</b> under a proposal to use it as written.',
-    '• Or reply to a proposal with your own text. That text becomes the description.',
-    '• Or send <code>2</code> to pick #2 as written, or put your own description on the lines after the number.',
+    '• Or send <code>2</code> to pick #2 as written.',
+    '• Or just write what you want, e.g. "the kitchen one, but for friends", "here\'s my description: …", "make the description shorter" or "none of these, something with music". You can reply to a proposal or write on its own. Claude reads it, and the confirmation says how it was read.',
     '',
     'Change other fields with one line each:',
     '<code>title: The Mirror Challenge</code>',
@@ -192,7 +245,7 @@ export function replyGuideText() {
     '<code>time: 10-15 min</code>',
     '<code>link: https://…</code>',
     '',
-    'Your text is used exactly as written. Send another reply any time before Monday to change the pick; picking the same number again keeps your earlier changes.',
+    'A description you write is used exactly as written; one Claude writes for you follows the style guide. If something is unclear you get a question back: just reply to it. Send another reply any time before Monday to change the pick; picking the same number again keeps your earlier changes.',
   ].join('\n');
 }
 
@@ -218,9 +271,9 @@ export function formatFooter(weekId, count) {
  * Pick buttons for a batch that was never saved, and a rerun would renumber,
  * so an old "Pick #1" could publish a different challenge.
  */
-export async function sendProposalBatch(chatId, { weekId, weekOf, proposals, more = false, moreCount }, options) {
+export async function sendProposalBatch(chatId, { weekId, weekOf, proposals, more = false, moreCount, hint = null }, options) {
   const messages = [
-    formatHeader(weekId, weekOf, proposals.length, { more }),
+    formatHeader(weekId, weekOf, proposals.length, { more, hint }),
     ...proposals.map((proposal) => formatProposal(proposal, weekId)),
     formatFooter(weekId, moreCount ?? proposals.length),
   ];
@@ -237,6 +290,16 @@ export async function sendProposalBatch(chatId, { weekId, weekOf, proposals, mor
     }
     throw err;
   }
+}
+
+/** Cuts plain text to at most `max` characters by whole graphemes, so no emoji is split. */
+export function clipGraphemes(value, max) {
+  let out = '';
+  for (const { segment } of new Intl.Segmenter('en', { granularity: 'grapheme' }).segment(value)) {
+    if (out.length + segment.length > max) break;
+    out += segment;
+  }
+  return out;
 }
 
 /**
@@ -262,11 +325,16 @@ function clipEscaped(raw, limit, suffix = '…') {
  * as the proposal, so replying to it changes the same pick.
  *
  * `violations` are style-check results for the description. Martin's own text
- * is published as written (plan D5), so they are reported, not fixed. Every
+ * is published as written (plan D5), so they are reported, not fixed.
+ * `descriptionBy` is who wrote the description on the card (it sets how a
+ * warning is worded); `wroteDescription` says Claude wrote it just now. Every
  * part that can grow is clipped, so the message always fits in one Telegram
  * message whatever passed validation.
  */
-export function formatConfirmation({ challenge, n, weekId, changed = [], violations = [], fallback = false, live = false }) {
+export function formatConfirmation({
+  challenge, n, weekId, changed = [], violations = [], fallback = false, live = false,
+  readAs = null, descriptionBy = null, wroteDescription = false,
+}) {
   const week = escapeHtml(formatWeekLabel(challenge.weekOf));
   const heading = fallback
     ? `⏰ <b>No pick by Sunday, so #${n} is set for the week of ${week}</b>`
@@ -292,10 +360,14 @@ export function formatConfirmation({ challenge, n, weekId, changed = [], violati
       clipEscaped(challenge.description, echoLimit, '… (shortened here; the card has all of it)'),
       '',
     ];
+    if (readAs) lines.push(`I read this as: ${escapeHtml(clipGraphemes(readAs, 200))}`);
     if (changed.length) lines.push(`Your changes: ${escapeHtml(changed.join(', '))}`);
+    if (wroteDescription) lines.push('I wrote the description, as you asked.');
     if (warnings.length) {
       lines.push(
-        '⚠️ The style check flagged the description. It is published as written; reply with a new version to replace it.',
+        descriptionBy === 'claude'
+          ? '⚠️ The style check still flags the description I wrote. Reply with what to change, or with your own version.'
+          : '⚠️ The style check flagged the description. It is published as written; reply with a new version to replace it.',
         ...warnings
       );
     }

@@ -6,6 +6,8 @@ the following Monday. If he doesn't pick by Sunday, idea #1 goes up on its own.
 
 The design, its decisions (D1–D11) and the build steps are in
 [`docs/plans/telegram-weekly-proposals.md`](docs/plans/telegram-weekly-proposals.md).
+Free-form replies read by Claude (D12–D18) are in
+[`docs/plans/telegram-freeform-replies.md`](docs/plans/telegram-freeform-replies.md).
 
 ## How a week runs
 
@@ -25,12 +27,15 @@ by hand), no proposals go out that week and the bot says why.
 ## Answering in Telegram
 
 - Tap **Pick** under an idea to use it as written.
-- Or reply to an idea with your own text. That text becomes the description,
-  exactly as typed.
-- Or send `2` to pick #2, with an optional description on the lines after it.
-- Change other fields with one line each: `title:`, `emoji:`, `category:`
-  (friend, couple or both), `difficulty:` (easy, medium or hard), `players:`,
-  `time:`, `link:`.
+- Or send `2` to pick #2 as written.
+- Or just write what you want, as a reply to an idea or on its own. For
+  example: "the kitchen one, but for friends", "2, here's my description: …",
+  "make the description shorter", or "none of these, something with music".
+  Claude Opus 5.5 reads it (see below), and the confirmation says how it was read.
+- Change fields with one line each: `title:`, `emoji:`, `category:` (friend,
+  couple or both), `difficulty:` (easy, medium or hard), `players:`, `time:`,
+  `link:`. After a number (`2` then the field lines) or in a reply to an idea,
+  they're read without Claude.
 - Reply to a confirmation to change the same pick again. Picking the same number
   keeps your earlier changes.
 - Tap the **🔄 4 more** button under a batch for another one. `/help` shows all
@@ -39,6 +44,38 @@ by hand), no proposals go out that week and the bot says why.
 Your own description is published as written. If it breaks a rule in
 `writing-style.md`, the confirmation lists what the style check flagged, and
 `npm run lint:copy` reports it as a warning rather than a failure.
+
+### Free-form replies (Claude)
+
+Some messages skip Claude and stay instant and free:
+- button taps and `/help`;
+- a bare number;
+- a number followed only by field lines;
+- field lines alone in reply to an idea.
+
+Everything else goes to the Apply Challenge workflow, where Claude Opus 5.5
+reads it alongside the week's proposals, the current pick and the message you
+replied to. That covers anything with prose in it, field lines sent on their
+own, and any reply to one of the bot's questions (even a bare number).
+
+- **A pick or a change.** Claude works out the proposal ("the kitchen one") and
+  the fields you meant ("couples-only" means category couple). The confirmation
+  includes a line "I read this as: …".
+- **Your description.** Claude copies it word for word, and the bot checks that
+  it really is your text before using it.
+- **A description Claude writes.** This happens only when you ask ("make it
+  shorter", "write a fresh one"). It follows `writing-style.md` and gets one
+  rewrite if the style check flags it. Unlike your own text, it is linted like
+  any generated copy.
+- **More ideas.** "None of these, something with music" starts a new batch
+  around that theme.
+- **Unclear messages.** If Claude isn't sure, you get a question that quotes
+  what you wrote. Reply to it, even with just a number, and it's read together
+  with your first message.
+
+Accuracy is checked with `node scripts/eval-interpret.mjs` on 20 realistic
+messages in `tests/fixtures/interpret-messages.json` (about $1 a run). The first
+run, on 14 Oct 2026, read all 20 as expected.
 
 Only the live week and later weeks can change. A tap on an old week's button is
 answered with "in the archive now".
@@ -104,10 +141,13 @@ Every workflow messages the chat when it fails, with a link to the run.
 
 ## Costs and limits
 
-- About two Claude calls a week: one proposal call with up to three web
+- About two Claude calls a week for proposals: one call with up to three web
   searches, plus one style-rewrite call when a description needs it. A "more"
-  tap adds about one more. The model is `claude-sonnet-4-6`, set in
-  `scripts/lib/claude.mjs`.
+  request adds about one more. That model is `claude-sonnet-4-6`
+  (`scripts/lib/claude.mjs`).
+- One Claude Opus 5.5 call per free-form message, a few cents each, plus one
+  more when a description Claude wrote needs a rewrite. Settings are in
+  `INTERPRET_OPTIONS` (`scripts/lib/interpret.mjs`).
 - The organisation's 30,000 input-tokens-per-minute limit is handled by retries
   that follow `retry-after`.
 - Telegram, the Netlify function (a few calls a week) and GitHub Actions on this

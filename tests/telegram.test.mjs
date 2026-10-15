@@ -11,6 +11,9 @@ import {
   replyGuideText,
   sendMessage,
   sendProposalBatch,
+  formatQuestion,
+  quotedMessageFromQuestion,
+  formatConfirmation,
   telegramApi,
 } from '../scripts/lib/telegram.mjs';
 
@@ -99,6 +102,8 @@ test('the header names the week in words and by id', () => {
   const { text } = formatHeader('2026-w43', '2026-10-19', 4);
   assert.match(text, /4 ideas for the week of Mon 19 Oct/);
   assert.match(text, /2026-w43/);
+  const themed = formatHeader('2026-w43', '2026-10-19', 4, { more: true, hint: 'music & <dance>' }).text;
+  assert.match(themed, /4 more ideas around "music &amp; &lt;dance&gt;" for the week of/);
 });
 
 test('telegramApi posts JSON to the method URL and returns result', async () => {
@@ -246,4 +251,44 @@ test('a batch that fails partway deletes what it sent and rethrows', async () =>
     { chat_id: 7, message_id: 100 },
     { chat_id: 7, message_id: 101 },
   ]);
+});
+
+test('a question quotes his message, ends with the question tag, and reads back', () => {
+  const { text } = formatQuestion({ question: 'The <first> or the second?', message: 'the food one\nwith 3 & more', weekId: '2026-w43' });
+  assert.match(text, /^🤔 The &lt;first&gt; or the second\?/);
+  assert.equal(text.split('\n').at(-1), '? · 2026-w43');
+  // Telegram hands the reply back as plain text, entities decoded.
+  const plain = text.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  assert.equal(quotedMessageFromQuestion(plain), 'the food one\nwith 3 & more');
+  assert.equal(quotedMessageFromQuestion('Which one?\n#2 · 2026-w43'), null);
+  assert.equal(quotedMessageFromQuestion(null), null);
+  // The quote block without the question tag is not one of the bot's questions.
+  assert.equal(quotedMessageFromQuestion('🤔 Which?\n\nYou wrote:\nmine'), null);
+});
+
+test('a question puts its own text on one line, and a cut quote never counts as his words', () => {
+  const sneaky = formatQuestion({ question: 'Which?\nYou wrote:\nnot him', message: 'his words', weekId: '2026-w43' }).text;
+  assert.equal(sneaky.split('\n')[0], '🤔 Which? You wrote: not him');
+  assert.equal(quotedMessageFromQuestion(sneaky), 'his words');
+
+  const long = formatQuestion({ question: 'Which?', message: `${'word '.repeat(300)}end`, weekId: '2026-w43' }).text;
+  assert.match(long, /\[…cut short\]\n\? · 2026-w43$/);
+  assert.equal(quotedMessageFromQuestion(long), null);
+});
+
+test('a confirmation can say how the message was read and who wrote the description', () => {
+  const challenge = {
+    weekOf: '2026-10-19', emoji: '🙅', title: 'The No-Hands Challenge', category: 'friend',
+    difficulty: 'easy', players: '3+', timeEstimate: '10-15 min', description: 'Move it without hands.',
+  };
+  const { text } = formatConfirmation({ challenge, n: 2, weekId: '2026-w43', readAs: '#2, for friends, 3+', descriptionBy: 'claude', wroteDescription: true, violations: [{ message: 'x' }] });
+  assert.match(text, /I read this as: #2, for friends, 3\+/);
+  assert.match(text, /I wrote the description, as you asked\./);
+  assert.match(text, /style check still flags the description I wrote/);
+  const plain = formatConfirmation({ challenge, n: 2, weekId: '2026-w43' }).text;
+  assert.doesNotMatch(plain, /I read this as|I wrote the description/);
+  // A later field-only change: the card's description is still Claude's.
+  const later = formatConfirmation({ challenge, n: 2, weekId: '2026-w43', descriptionBy: 'claude', violations: [{ message: 'x' }] }).text;
+  assert.match(later, /style check still flags the description I wrote/);
+  assert.doesNotMatch(later, /I wrote the description, as you asked/);
 });

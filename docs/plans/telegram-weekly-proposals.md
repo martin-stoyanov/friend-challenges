@@ -37,7 +37,10 @@ Mon             The site starts showing the new week (it hides weeks dated after
                 the viewer's local today)
 ```
 
-Reply grammar (all optional except the pick):
+Reply grammar (all optional except the pick). Since
+`docs/plans/telegram-freeform-replies.md`, anything with prose in it goes to
+Claude instead of being taken as the description; the exact format below still
+works without Claude.
 
 ```
 2                              pick #2 as written

@@ -1,7 +1,8 @@
 name: Apply Challenge
 
-# A pick from Telegram (started by the webhook), a pick made by hand from the
-# Actions tab, or Sunday's fallback. docs/plans/telegram-weekly-proposals.md,
+# A pick from Telegram (started by the webhook), a free-form message for Claude
+# to read (docs/plans/telegram-freeform-replies.md), a pick made by hand from
+# the Actions tab, or Sunday's fallback. docs/plans/telegram-weekly-proposals.md,
 # Steps 7 and 9.
 
 on:
@@ -30,9 +31,23 @@ on:
         description: 'Where the pick came from (set by the Telegram webhook)'
         type: string
         default: manual
+      message:
+        description: 'A free-form message for Claude to read (set by the Telegram webhook)'
+        type: string
+        default: ''
+      reply_n:
+        description: 'The proposal the message replied to (set by the Telegram webhook)'
+        type: string
+        default: ''
+      reply_text:
+        description: 'The text of the message it replied to (set by the Telegram webhook)'
+        type: string
+        default: ''
 
 permissions:
   contents: write
+  # An interpreted "more" starts propose-challenges.yml (workflow_dispatch).
+  actions: write
 
 # No concurrency group: GitHub cancels a waiting run when another queues behind
 # it, which would silently drop a pick. Concurrent picks are handled by
@@ -55,9 +70,13 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        # The pick reaches apply-choice.mjs through $GITHUB_EVENT_PATH, never
-        # through this shell. Applying is deterministic, so after a lost push
-        # race it simply runs again on the new master.
+          # Lets an interpreted "more" start propose-challenges.yml (plan D17).
+          GITHUB_TOKEN: ${{ github.token }}
+        # The pick or message reaches apply-choice.mjs through $GITHUB_EVENT_PATH,
+        # never through this shell. After a lost push race the apply runs again
+        # on the new master: a pick is deterministic, and Claude's reading of a
+        # message is cached in $RUNNER_TEMP, so it isn't paid for or read twice.
+        # Help, questions and "more" commit nothing, so they never repeat.
         run: |
           git config user.name "Challenge Bot"
           git config user.email "bot@friend-challenges.app"
@@ -70,7 +89,8 @@ jobs:
             : > "$RUNNER_TEMP/apply-output"
             GENERATED=false
             GITHUB_OUTPUT="$RUNNER_TEMP/apply-output" \
-              node scripts/apply-choice.mjs "${MODE[@]}" --message-out "$RUNNER_TEMP/confirm.json"
+              node scripts/apply-choice.mjs "${MODE[@]}" --message-out "$RUNNER_TEMP/confirm.json" \
+                --interpretation-cache "$RUNNER_TEMP/interpretation.json"
             if grep -qx 'generate=true' "$RUNNER_TEMP/apply-output"; then
               node scripts/generate-challenge.mjs
               # The generator exits 0 even when it produced nothing; an empty
