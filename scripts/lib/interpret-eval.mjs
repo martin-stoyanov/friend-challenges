@@ -76,6 +76,5 @@ export function idealAnswer(expect) {
     descriptionBy: expect.descriptionBy ?? 'none',
     hint: expect.hintIncludes ?? null,
     question: expect.action === 'clarify' ? 'Which one do you mean?' : null,
-    readAs: 'ideal',
   };
 }

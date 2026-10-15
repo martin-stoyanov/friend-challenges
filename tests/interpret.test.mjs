@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { INTERPRET_SCHEMA, buildInterpretRequest, findVerbatim, readInterpretation } from '../scripts/lib/interpret.mjs';
+import { INTERPRET_SCHEMA, buildInterpretRequest, describeReading, findVerbatim, readInterpretation } from '../scripts/lib/interpret.mjs';
 import { appendBatch, createProposals, markPicked } from '../scripts/lib/proposals.mjs';
 
 const NOW = new Date('2026-10-15T12:00:00Z');
@@ -30,7 +30,6 @@ const answer = (overrides) => ({
   descriptionBy: 'none',
   hint: null,
   question: null,
-  readAs: '',
   ...overrides,
 });
 
@@ -80,7 +79,7 @@ test('with nothing picked and no reply, the prompt says so and has no reply bloc
 
 test('a pick maps his field words onto the record and keeps the reading', () => {
   const result = readInterpretation(
-    answer({ n: 2, fields: { ...answer().fields, category: 'couple', time: ' 5 min ', link: 'https://www.tiktok.com/@a/video/1' }, readAs: '#2, couples, 5 min' }),
+    answer({ n: 2, fields: { ...answer().fields, category: 'couple', time: ' 5 min ', link: 'https://www.tiktok.com/@a/video/1' } }),
     { message: '2, couples only, takes 5 min, link https://www.tiktok.com/@a/video/1', proposals }
   );
   assert.deepEqual(result, {
@@ -88,7 +87,7 @@ test('a pick maps his field words onto the record and keeps the reading', () => 
     n: 2,
     overrides: { category: 'couple', timeEstimate: '5 min', exampleUrl: 'https://www.tiktok.com/@a/video/1' },
     descriptionBy: 'none',
-    readAs: '#2, couples, 5 min',
+    readAs: '#2 The No-Hands Challenge · for → couples (already) · time → 5 min · link → the one you sent',
   });
 });
 
@@ -201,8 +200,6 @@ test('his description is stored trimmed; caps never split an emoji', () => {
   const family = '👨‍👩‍👧';
   const question = readInterpretation(answer({ action: 'clarify', question: 'x'.repeat(295) + family }), { message: 'x', proposals }).question;
   assert.equal(question, 'x'.repeat(295));
-  const readAs = readInterpretation(answer({ n: 1, readAs: 'y'.repeat(198) + family }), { message: '1', proposals }).readAs;
-  assert.equal(readAs, 'y'.repeat(198));
 });
 
 test('words he wrote before, quoted in the question he is answering, count as his', () => {
@@ -217,4 +214,40 @@ test('words he wrote before, quoted in the question he is answering, count as hi
     { message: 'yes that one', proposals, earlierMessage: 'use https://www.tiktok.com/@b/video/2' }
   );
   assert.equal(link.overrides.exampleUrl, 'https://www.tiktok.com/@b/video/2');
+});
+
+test('the read-as line is built from what is applied, never from the model', () => {
+  // Whatever the model says about itself is not used.
+  const result = readInterpretation(
+    { ...answer({ n: 2, description: 'Move a grape across the table.', descriptionBy: 'martin' }), readAs: 'your edited description' },
+    { message: 'Move a grape across the table.', proposals }
+  );
+  assert.equal(result.readAs, '#2 The No-Hands Challenge · your description, word for word');
+  assert.equal('readAs' in INTERPRET_SCHEMA.properties, false);
+});
+
+test('describeReading names the proposal, a switch, each change and who wrote the description', () => {
+  const picked = markPicked(proposals, { n: 1, source: 'button', overrides: {} }, NOW);
+  assert.equal(
+    describeReading({ n: 2, overrides: { title: 'The Grape Run', emoji: '🍇', category: 'friend', difficulty: 'hard', players: '3+', timeEstimate: '5 min', exampleUrl: 'https://x.com' }, descriptionBy: 'none' }, picked),
+    '#2 The No-Hands Challenge instead of #1 · title → The Grape Run · emoji → 🍇 · for → friends · difficulty → hard · players → 3+ · time → 5 min · link → the one you sent'
+  );
+  assert.equal(describeReading({ n: 1, overrides: {}, descriptionBy: 'none' }, picked), '#1 The Guess the Number Challenge · no new changes');
+  assert.equal(describeReading({ n: 2, overrides: {}, descriptionBy: 'none' }, proposals), '#2 The No-Hands Challenge · as proposed');
+  assert.equal(
+    describeReading({ n: 1, overrides: { description: 'x' }, descriptionBy: 'claude' }, proposals),
+    '#1 The Guess the Number Challenge · a description I wrote'
+  );
+  assert.equal(describeReading({ n: 2, overrides: { category: 'both' }, descriptionBy: 'none' }, proposals), '#2 The No-Hands Challenge · for → everyone');
+  // #2 is already for couples: say so rather than claim a change.
+  assert.equal(describeReading({ n: 2, overrides: { category: 'couple' }, descriptionBy: 'none' }, proposals), '#2 The No-Hands Challenge · for → couples (already)');
+});
+
+test('re-picking the current pick names it by its current title and lists only new changes', () => {
+  const retitled = markPicked(proposals, { n: 2, source: 'message', overrides: { title: 'The Grape Run Challenge', emoji: '🍇' } }, NOW);
+  assert.equal(describeReading({ n: 2, overrides: {}, descriptionBy: 'none' }, retitled), '#2 The Grape Run Challenge · no new changes');
+  assert.equal(
+    describeReading({ n: 2, overrides: { players: '3+', emoji: '🍇' }, descriptionBy: 'none' }, retitled),
+    '#2 The Grape Run Challenge · emoji → 🍇 (already) · players → 3+'
+  );
 });

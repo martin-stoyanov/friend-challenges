@@ -184,7 +184,6 @@ const reading = (overrides) => ({
   descriptionBy: 'none',
   hint: null,
   question: null,
-  readAs: '',
   ...overrides,
 });
 
@@ -231,7 +230,6 @@ test('a message picks with his own description, through Opus, and the confirmati
       fields: { ...reading().fields, category: 'friend' },
       description: 'Two of you draw blind while a third describes a photo.',
       descriptionBy: 'martin',
-      readAs: '#2, for friends, with your description',
     })],
     ['--message-out', path.join(dir, 'confirm.json')]
   );
@@ -246,7 +244,7 @@ test('a message picks with his own description, through Opus, and the confirmati
   ]);
   const { pick } = readJson(`proposals/${upcoming.weekId}.json`);
   assert.deepEqual([pick.n, pick.source, pick.descriptionBy], [2, 'message', 'martin']);
-  assert.match(readJson('confirm.json').text, /I read this as: #2, for friends, with your description/);
+  assert.match(readJson('confirm.json').text, /I read this as: #2 The Bravo Challenge · for → friends · your description, word for word/);
 });
 
 test('a description Claude writes on request gets one style rewrite and is marked as Claude\'s', () => {
@@ -255,7 +253,7 @@ test('a description Claude writes on request gets one style rewrite and is marke
   const clean = 'Sit back to back. One of you describes a photo while the other draws it blind, with no peeking allowed at all.';
   const { status, calls } = runMessage(
     { week_id: upcoming.weekId, message: '2 but write a punchier description' },
-    [reading({ n: 2, description: flagged, descriptionBy: 'claude', readAs: '#2, new description' }), { description: clean }],
+    [reading({ n: 2, description: flagged, descriptionBy: 'claude' }), { description: clean }],
     ['--message-out', path.join(dir, 'confirm.json')]
   );
   assert.equal(status, 0);
@@ -283,7 +281,7 @@ test('an answer to that question can use the description from his first message'
   const question = `🤔 Alpha or Bravo?\n\nYou wrote:\nthe food one, description: Pass a grape around using only your chins.\n? · ${upcoming.weekId}`;
   const { status, output } = runMessage(
     { week_id: upcoming.weekId, message: '2', reply_text: question },
-    [reading({ n: 2, description: 'Pass a grape around using only your chins.', descriptionBy: 'martin', readAs: '#2 with your description' })]
+    [reading({ n: 2, description: 'Pass a grape around using only your chins.', descriptionBy: 'martin' })]
   );
   assert.equal(status, 0);
   assert.match(output, /applied=true/);
@@ -314,7 +312,7 @@ test('help sends the reply guide; a week with no proposals is answered without c
 test('the reading is cached for the run, so applying again calls Claude once', () => {
   writeProposalsFile(upcoming.weekId, upcoming.weekOf);
   const cache = path.join(dir, 'interpretation.json');
-  const first = runMessage({ week_id: upcoming.weekId, message: 'the alpha one' }, [reading({ n: 1, readAs: '#1' })], ['--interpretation-cache', cache]);
+  const first = runMessage({ week_id: upcoming.weekId, message: 'the alpha one' }, [reading({ n: 1 })], ['--interpretation-cache', cache]);
   assert.equal(first.calls.filter((c) => c.to === 'claude').length, 1);
   const again = runMessage({ week_id: upcoming.weekId, message: 'the alpha one' }, [], ['--interpretation-cache', cache]);
   assert.equal(again.status, 0, again.stderr);
@@ -337,7 +335,7 @@ test('a rewrite that breaks more rules than the first draft is not used', () => 
   const worse = 'It is hilarious — epic — draw.';
   const { status, calls } = runMessage(
     { week_id: upcoming.weekId, message: '2, rewrite the description please' },
-    [reading({ n: 2, description: first, descriptionBy: 'claude', readAs: '#2' }), { description: worse }]
+    [reading({ n: 2, description: first, descriptionBy: 'claude' }), { description: worse }]
   );
   assert.equal(status, 0);
   assert.match(calls[1].prompt, /^Martin asked: 2, rewrite the description please/, 'the rewrite sees his request');
@@ -349,7 +347,7 @@ test('a description Claude can only write too long becomes a question', () => {
   const long = 'Sit down and play. '.repeat(120);
   const { status, output, calls } = runMessage(
     { week_id: upcoming.weekId, message: '2, write a very detailed description' },
-    [reading({ n: 2, description: long, descriptionBy: 'claude', readAs: '#2' }), { description: long }]
+    [reading({ n: 2, description: long, descriptionBy: 'claude' }), { description: long }]
   );
   assert.equal(status, 0);
   assert.equal(output, '');
@@ -379,7 +377,7 @@ test('"more" for an archived week is answered without asking GitHub', () => {
 
 test('a hand-run message with an empty week means the coming week', () => {
   writeProposalsFile(upcoming.weekId, upcoming.weekOf);
-  const { status, output } = runMessage({ week_id: '', message: 'the alpha one' }, [reading({ n: 1, readAs: '#1' })]);
+  const { status, output } = runMessage({ week_id: '', message: 'the alpha one' }, [reading({ n: 1 })]);
   assert.equal(status, 0);
   assert.match(output, /applied=true/);
 });

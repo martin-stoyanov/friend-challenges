@@ -292,3 +292,15 @@ test('a confirmation can say how the message was read and who wrote the descript
   assert.match(later, /style check still flags the description I wrote/);
   assert.doesNotMatch(later, /I wrote the description, as you asked/);
 });
+
+test('a long read-as line is kept whole up to 600 characters, then cut with a visible …', () => {
+  const challenge = {
+    weekOf: '2026-10-19', emoji: '🙅', title: 'The No-Hands Challenge', category: 'friend',
+    difficulty: 'easy', players: '3+', timeEstimate: '10-15 min', description: 'Move it without hands.',
+  };
+  const line = `#2 ${'T'.repeat(100)} · players → 3+ · your description, word for word`;
+  assert.match(formatConfirmation({ challenge, n: 2, weekId: '2026-w43', readAs: line }).text, /players → 3\+ · your description, word for word\n/);
+  const huge = formatConfirmation({ challenge, n: 2, weekId: '2026-w43', readAs: 'x'.repeat(700) }).text;
+  assert.match(huge, /I read this as: x+…\n/);
+  assert.ok(huge.split('\n').find((l) => l.startsWith('I read this as')).length <= 'I read this as: '.length + 600);
+});
