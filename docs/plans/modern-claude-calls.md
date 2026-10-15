@@ -32,7 +32,8 @@ Branch: `modern-claude-and-read-as`, shared with `docs/plans/read-as-line.md`.
     The workflows that call Claude gain `npm ci`.
 - **D21 — The generator runs on Claude Opus 5.5 with current features:**
   - `web_search_20260209`: with dynamic filtering Claude filters results in code
-    before they reach its context, at most 3 searches;
+    before they reach its context, at most 5 searches (3 until the live
+    checks in Step 21);
   - structured outputs (`output_config.format`): a JSON schema for the
     proposals, the single challenge and the style rewrites, instead of "respond
     with ONLY raw JSON" and parse retries;
@@ -130,6 +131,10 @@ Branch: `modern-claude-and-read-as`, shared with `docs/plans/read-as-line.md`.
     results count as input, which is most of the research call's tokens.
   - The key's Opus 5.5 limit is 10 million input tokens a minute. The 30,000 a
     minute that throttled backfills was Sonnet 4.6's.
+  - Afterwards, Martin raised the search cap from 3 to 5 per research call, so
+    the research doesn't stop after one round of queries. A live
+    `--propose 4 --dry-run` then used all five: 68,624 tokens in and 4,398 out
+    for the research, 80 seconds in all, at about the same cost as before.
 - Docs:
   - `AUTOMATION_PLAN.md`: models and costs;
   - `README.md`: the SDK dependency;

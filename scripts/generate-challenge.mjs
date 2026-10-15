@@ -238,7 +238,7 @@ const REWRITES_SCHEMA = {
 const RESEARCH_OPTIONS = {
   model: 'claude-opus-5-5',
   searchTool: 'web_search_20260209',
-  maxSearches: 3,
+  maxSearches: 5,
   effort: 'high',
   fallbacks: 'default',
   maxTokens: 16000,

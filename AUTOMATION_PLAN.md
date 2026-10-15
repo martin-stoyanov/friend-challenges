@@ -153,7 +153,7 @@ Every Claude call goes through the official Anthropic SDK in
 with its tokens and web searches. Claude Opus 5.5 costs $4 per million input
 tokens and $20 per million output. A normal week comes to about $0.50–1.
 
-- **Proposals:** one research call with up to three web searches, about $0.45.
+- **Proposals:** one research call with up to five web searches, about $0.45.
   Search results count as input, so it reads about 90,000 tokens. A style
   rewrite, when a description needs one, adds about 4 cents. A "more" request
   is another batch. A batch takes a minute or two. The settings are

@@ -293,7 +293,7 @@ test('proposals are researched by Opus 5.5 with current web search and a schema,
   assert.equal(status, 0, stderr);
   const claude = calls.find((c) => c.url.includes('anthropic'));
   assert.equal(claude.model, 'claude-opus-5-5');
-  assert.deepEqual(claude.tools, [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }]);
+  assert.deepEqual(claude.tools, [{ type: 'web_search_20260209', name: 'web_search', max_uses: 5 }]);
   assert.equal(claude.output_config.effort, 'high');
   assert.equal(claude.output_config.format.type, 'json_schema');
   assert.deepEqual(Object.keys(claude.output_config.format.schema.properties), ['challenges']);
