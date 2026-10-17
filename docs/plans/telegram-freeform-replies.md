@@ -75,7 +75,9 @@ Telegram → Netlify function (scripts/lib/reply.mjs)
   `propose-challenges.yml` with `mode=more`, the week and a `hint`, using the
   workflow's own `GITHUB_TOKEN`. GitHub allows `workflow_dispatch` from it; the
   apply workflow gets `actions: write`. The hint goes into the proposals prompt.
-- **D18 — Every interpreted pick says how it was read.** The confirmation gains a
+- **D18 — Every interpreted pick says how it was read.** (Since
+  `docs/plans/read-as-line.md` D19 the line is built by code from the checked
+  reading; `readAs` is no longer in the schema.) The confirmation gains a
   line such as "I read this as: #2, category → couple, your description". When
   Claude wrote the description, the line says so. A misread is fixed by replying to
   the confirmation.
@@ -203,6 +205,8 @@ Telegram → Netlify function (scripts/lib/reply.mjs)
     description didn't fit proposal #2, and Claude asked whether he meant
     another proposal, which is the intended behaviour. With the fixture fixed,
     that case passes, curly quotes kept exactly.
+  - Later runs are recorded in `docs/plans/read-as-line.md` (Step 18), and the
+    latest result is noted in `AUTOMATION_PLAN.md`.
 - Docs:
   - the reply guide gains "or just write what you want";
   - `AUTOMATION_PLAN.md` explains free-form replies, questions and themes;

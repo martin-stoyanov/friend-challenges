@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { getCurrentMonday, getNextMonday, getWeekId } from '../scripts/lib/dates.mjs';
 import { appendBatch, createProposals } from '../scripts/lib/proposals.mjs';
 
@@ -16,8 +16,10 @@ const upcoming = { weekOf: getNextMonday(), weekId: getWeekId(getNextMonday()) }
 let dir;
 
 // Each Claude call returns fresh titles, so "more" never collides with a batch.
+const SSE_HELPER = pathToFileURL(path.join(ROOT, 'tests', 'helpers', 'sse.mjs')).href;
 const STUB = `
 import fs from 'node:fs';
+import { sseResponse } from '${SSE_HELPER}';
 let call = 0;
 globalThis.fetch = async (url, init) => {
   const body = JSON.parse(init.body);
@@ -26,23 +28,42 @@ globalThis.fetch = async (url, init) => {
     method: String(url).split('/').at(-1),
     prompt: body.messages?.[0]?.content,
     text: body.text,
+    model: body.model,
+    tools: body.tools,
+    schema: body.output_config?.format?.schema,
+    output_config: body.output_config,
+    fallbacks: body.fallbacks,
+    max_tokens: body.max_tokens,
   }) + '\\n');
   if (String(url).includes('api.telegram.org')) {
     return new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }));
   }
   call++;
+  const wanted = body.output_config?.format?.schema?.properties ?? {};
+  // STUB_BAD: the first research answer breaks the style guide, so the
+  // style-repair requests run; rewrites come back clean, keyed by title.
+  const bad = process.env.STUB_BAD && call === 1;
+  if (wanted.rewrites) {
+    const titles = [...body.messages[0].content.matchAll(/^\\d+\\. (The .+ Challenge)$/gm)].map((m) => m[1]);
+    const rewrites = titles.map((title) => ({ title, description: 'Rewritten clean. One of you describes a photo while the other draws it blind, with no peeking allowed.' }));
+    return sseResponse({ stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({ rewrites }) }] });
+  }
   const proposals = [0, 1, 2, 3].map((i) => ({
     // Letters only: the duplicate check ignores digits.
     title: 'The ' + ['Alpha', 'Bravo', 'Charlie', 'Delta'][i] + ' ' + ['One', 'Two', 'Three', 'Four'][call - 1] + ' Challenge',
-    description: 'Sit back to back. One of you describes a photo while the other draws it blind, with no peeking and no hand gestures.',
+    description: bad
+      ? 'It is hilarious — trust me on this one, it really is.'
+      : 'Sit back to back. One of you describes a photo while the other draws it blind, with no peeking and no hand gestures.',
     category: i % 2 ? 'friend' : 'couple', difficulty: 'easy', emoji: '🎨', trendSource: 'TikTok',
     players: '2', timeEstimate: '10-15 min', exampleUrl: 'https://www.tiktok.com/search?q=blind', reasoning: 'r',
   }));
-  return new Response(JSON.stringify({ stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(proposals) }] }));
+  // Answer in the shape the request's schema asks for.
+  const answer = wanted.challenges ? { challenges: proposals } : proposals[0];
+  return sseResponse({ stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(answer) }] });
 };
 `;
 
-function run(args, { eventName, inputs } = {}) {
+function run(args, { eventName, inputs, env: extraEnv = {} } = {}) {
   const env = {
     ...process.env,
     ANTHROPIC_API_KEY: 'k',
@@ -50,6 +71,7 @@ function run(args, { eventName, inputs } = {}) {
     TELEGRAM_CHAT_ID: '42',
     STUB_LOG: path.join(dir, 'calls.log'),
     GITHUB_ACTIONS: 'true',
+    ...extraEnv,
   };
   delete env.GITHUB_EVENT_PATH;
   delete env.GITHUB_EVENT_NAME;
@@ -83,6 +105,8 @@ function seedBatch(weekId, weekOf, createdAt) {
 beforeEach(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'generate-cli-'));
   fs.cpSync(path.join(ROOT, 'scripts'), path.join(dir, 'scripts'), { recursive: true });
+  // The scripts import the Anthropic SDK; the copy resolves it from the repo's install.
+  fs.symlinkSync(path.join(ROOT, 'node_modules'), path.join(dir, 'node_modules'), 'dir');
   fs.copyFileSync(path.join(ROOT, 'writing-style.md'), path.join(dir, 'writing-style.md'));
   fs.mkdirSync(path.join(dir, 'src', 'data'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'src', 'data', 'challenges.json'), '[]');
@@ -262,4 +286,77 @@ test('a theme naming an audience replaces the usual mix', () => {
     inputs: { mode: 'more', week_id: upcoming.weekId, count: '2', dry_run: 'true', hint: 'something for couples' },
   });
   assert.match(calls.find((c) => c.url.includes('anthropic')).prompt, /If the theme names an audience \(couples, friends\), that replaces the mix of audiences above\./);
+});
+
+test('proposals are researched by Opus 5.5 with current web search and a schema, without JSON boilerplate', () => {
+  const { status, calls, stderr } = run(['--from-event'], { eventName: 'schedule' });
+  assert.equal(status, 0, stderr);
+  const claude = calls.find((c) => c.url.includes('anthropic'));
+  assert.equal(claude.model, 'claude-opus-5-5');
+  assert.deepEqual(claude.tools, [{ type: 'web_search_20260209', name: 'web_search', max_uses: 5 }]);
+  assert.equal(claude.output_config.effort, 'high');
+  assert.equal(claude.output_config.format.type, 'json_schema');
+  assert.deepEqual(Object.keys(claude.output_config.format.schema.properties), ['challenges']);
+  assert.deepEqual(claude.output_config.format.schema.properties.challenges.items.properties.category.enum, ['friend', 'couple', 'both']);
+  assert.equal(claude.fallbacks, 'default');
+  assert.equal(claude.max_tokens, 16000);
+  assert.doesNotMatch(claude.prompt, /ONLY a raw JSON|Start your response with/);
+  assert.match(claude.prompt, /- exampleUrl: a TikTok SEARCH URL/);
+});
+
+test('the single-challenge path uses the same model and tool, with the challenge schema', () => {
+  const { status, calls, stderr } = run(['--dry-run', '--week', upcoming.weekOf]);
+  assert.equal(status, 0, stderr);
+  const claude = calls.find((c) => c.url.includes('anthropic'));
+  assert.equal(claude.model, 'claude-opus-5-5');
+  assert.equal(claude.tools[0].type, 'web_search_20260209');
+  assert.deepEqual(claude.output_config.format.schema.required, [
+    'title', 'description', 'category', 'difficulty', 'emoji', 'trendSource', 'players', 'timeEstimate', 'exampleUrl', 'reasoning',
+  ]);
+  assert.doesNotMatch(claude.prompt, /ONLY a raw JSON/);
+});
+
+test('a batch that breaks the style guide gets one schema rewrite request, without search', () => {
+  const { status, stdout, calls, stderr } = run(['--propose', '2', '--dry-run'], { env: { STUB_BAD: '1' } });
+  assert.equal(status, 0, stderr);
+  const claude = calls.filter((c) => c.url.includes('anthropic'));
+  assert.equal(claude.length, 2, 'the research call, then one rewrite call');
+  const rewrite = claude[1];
+  assert.equal(rewrite.model, 'claude-opus-5-5');
+  assert.equal(rewrite.tools, undefined, 'no search for a rewrite');
+  assert.equal(rewrite.output_config.effort, 'medium');
+  assert.deepEqual(Object.keys(rewrite.schema.properties), ['rewrites']);
+  assert.doesNotMatch(rewrite.prompt, /ONLY a raw JSON|Start your response with/);
+  assert.match(stdout, /Rewritten clean\./, 'the rewrites were applied');
+});
+
+test('a single challenge that breaks the style guide is re-asked without JSON boilerplate', () => {
+  const { status, calls, stderr } = run(['--dry-run', '--week', upcoming.weekOf], { env: { STUB_BAD: '1' } });
+  assert.equal(status, 0, stderr);
+  const claude = calls.filter((c) => c.url.includes('anthropic'));
+  assert.equal(claude.length, 2);
+  assert.match(claude[1].prompt, /Your previous description was:/);
+  assert.doesNotMatch(claude[1].prompt, /Respond with ONLY|ONLY the raw JSON/);
+  assert.equal(claude[1].schema.required.length, 10);
+});
+
+test('every schema sent follows the structured-output rules', () => {
+  const allowed = new Set(['type', 'properties', 'required', 'additionalProperties', 'items', 'enum', 'anyOf', 'description']);
+  const check = (schema, where) => {
+    for (const key of Object.keys(schema)) assert.ok(allowed.has(key), `${where}: unsupported keyword ${key}`);
+    if (schema.type === 'object') {
+      assert.equal(schema.additionalProperties, false, where);
+      assert.deepEqual([...schema.required].sort(), Object.keys(schema.properties).sort(), where);
+      for (const [k, sub] of Object.entries(schema.properties)) check(sub, `${where}.${k}`);
+    }
+    if (schema.items) check(schema.items, `${where}[]`);
+    for (const option of schema.anyOf ?? []) check(option, where);
+  };
+  const runs = [
+    run(['--propose', '2', '--dry-run'], { env: { STUB_BAD: '1' } }),
+    run(['--dry-run', '--week', upcoming.weekOf]),
+  ];
+  const schemas = runs.flatMap((r) => r.calls.filter((c) => c.schema).map((c) => c.schema));
+  assert.ok(schemas.length >= 3, `saw ${schemas.length} schemas`);
+  schemas.forEach((schema, i) => check(schema, `schema ${i}`));
 });

@@ -22,6 +22,7 @@ const REQUEST_TIMEOUT_MS = 15_000;
 // MAX_MESSAGE_LENGTH; formatConfirmation shortens the echo further if not.
 const CONFIRMATION_ECHO_LIMIT = 1_500;
 const MAX_WARNING_LINES = 5;
+const READ_AS_LIMIT = 600;
 const WARNING_LINE_LIMIT = 150;
 
 const CATEGORY_LABELS = {
@@ -360,7 +361,8 @@ export function formatConfirmation({
       clipEscaped(challenge.description, echoLimit, '… (shortened here; the card has all of it)'),
       '',
     ];
-    if (readAs) lines.push(`I read this as: ${escapeHtml(clipGraphemes(readAs, 200))}`);
+    // Long enough for every field at its maximum; a visible "…" if ever cut.
+    if (readAs) lines.push(`I read this as: ${clipEscaped(readAs, READ_AS_LIMIT)}`);
     if (changed.length) lines.push(`Your changes: ${escapeHtml(changed.join(', '))}`);
     if (wroteDescription) lines.push('I wrote the description, as you asked.');
     if (warnings.length) {

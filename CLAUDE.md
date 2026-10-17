@@ -49,10 +49,21 @@ and is linted like any other.
 retitle proposals for an open week: the Pick buttons in his chat point at those
 numbers.
 
+## Calling Claude
+
+Every Claude call goes through `callClaude` in `scripts/lib/claude.mjs`, on the official
+SDK (`@anthropic-ai/sdk`), and every call is streamed: long web-search calls were cut off
+when they weren't. Don't call the API with `fetch` anywhere else. A call that wants JSON
+passes a JSON schema (`schema`) instead of asking for "only JSON" in the prompt. The
+generator's settings are `RESEARCH_OPTIONS` and `REWRITE_OPTIONS` in
+`scripts/generate-challenge.mjs` (`docs/plans/modern-claude-calls.md`). A live run of the
+generator usually costs about $0.50.
+
 After changing anything in `scripts/lib/interpret.mjs` (the prompt, the schema,
 `INTERPRET_OPTIONS`, or the checks in `readInterpretation`), run
-`node scripts/eval-interpret.mjs` (live, about $1) and compare it with the last
-result recorded in the plan.
+`node scripts/eval-interpret.mjs` (live, about $1). Compare it with the latest
+result noted in `AUTOMATION_PLAN.md` ("Accuracy is checked …"), and update that
+note.
 
 ## Before committing
 

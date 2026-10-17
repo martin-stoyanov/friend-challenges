@@ -7,7 +7,11 @@ the following Monday. If he doesn't pick by Sunday, idea #1 goes up on its own.
 The design, its decisions (D1–D11) and the build steps are in
 [`docs/plans/telegram-weekly-proposals.md`](docs/plans/telegram-weekly-proposals.md).
 Free-form replies read by Claude (D12–D18) are in
-[`docs/plans/telegram-freeform-replies.md`](docs/plans/telegram-freeform-replies.md).
+[`docs/plans/telegram-freeform-replies.md`](docs/plans/telegram-freeform-replies.md),
+the "I read this as" line (D19) in
+[`docs/plans/read-as-line.md`](docs/plans/read-as-line.md), and the move to the
+Anthropic SDK and Claude Opus 5.5 (D20–D22) in
+[`docs/plans/modern-claude-calls.md`](docs/plans/modern-claude-calls.md).
 
 ## How a week runs
 
@@ -60,7 +64,9 @@ own, and any reply to one of the bot's questions (even a bare number).
 
 - **A pick or a change.** Claude works out the proposal ("the kitchen one") and
   the fields you meant ("couples-only" means category couple). The confirmation
-  includes a line "I read this as: …".
+  includes a line built from what was actually applied, for example "I read this
+  as: #2 The No-Hands Challenge · for → friends · your description, word for
+  word". A field you set to the value it already had says "(already)".
 - **Your description.** Claude copies it word for word, and the bot checks that
   it really is your text before using it.
 - **A description Claude writes.** This happens only when you ask ("make it
@@ -73,9 +79,10 @@ own, and any reply to one of the bot's questions (even a bare number).
   what you wrote. Reply to it, even with just a number, and it's read together
   with your first message.
 
-Accuracy is checked with `node scripts/eval-interpret.mjs` on 20 realistic
-messages in `tests/fixtures/interpret-messages.json` (about $1 a run). The first
-run, on 14 Oct 2026, read all 20 as expected.
+Accuracy is checked with `node scripts/eval-interpret.mjs` on 24 realistic
+messages in `tests/fixtures/interpret-messages.json` (about $1 a run). The latest
+run, on 15 Oct 2026 after the move to the Anthropic SDK, read all 24 as expected,
+at 2–8 seconds a message.
 
 Only the live week and later weeks can change. A tap on an old week's button is
 answered with "in the archive now".
@@ -141,15 +148,26 @@ Every workflow messages the chat when it fails, with a link to the run.
 
 ## Costs and limits
 
-- About two Claude calls a week for proposals: one call with up to three web
-  searches, plus one style-rewrite call when a description needs it. A "more"
-  request adds about one more. That model is `claude-sonnet-4-6`
-  (`scripts/lib/claude.mjs`).
-- One Claude Opus 5.5 call per free-form message, a few cents each, plus one
-  more when a description Claude wrote needs a rewrite. Settings are in
-  `INTERPRET_OPTIONS` (`scripts/lib/interpret.mjs`).
-- The organisation's 30,000 input-tokens-per-minute limit is handled by retries
-  that follow `retry-after`.
+Every Claude call goes through the official Anthropic SDK in
+`scripts/lib/claude.mjs`, streamed, and the run's log shows one line per call
+with its tokens and web searches. Claude Opus 5.5 costs $4 per million input
+tokens and $20 per million output. A normal week comes to about $0.50–1.
+
+- **Proposals:** one research call with up to five web searches, about $0.45.
+  Search results count as input, so it reads about 90,000 tokens. A style
+  rewrite, when a description needs one, adds about 4 cents. A "more" request
+  is another batch. A batch takes a minute or two. The settings are
+  `RESEARCH_OPTIONS` and `REWRITE_OPTIONS` in `scripts/generate-challenge.mjs`.
+- **A challenge generated directly** (the Sunday fallback when nothing was
+  proposed, or one backfilled week): one research call, about $0.50. When its
+  description breaks the style guide, the whole call runs again, up to three
+  times in all, so up to about $1.50.
+- **Free-form messages:** one call each, about 3 cents, plus a rewrite when a
+  description Claude wrote needs one. The settings are `INTERPRET_OPTIONS` in
+  `scripts/lib/interpret.mjs`.
+- **Rate limits:** the key allows 10 million Opus 5.5 input tokens a minute, far
+  more than the bot uses. A 429 or a server error is retried (following
+  `retry-after`), and so is a reply that breaks off or takes too long.
 - Telegram, the Netlify function (a few calls a week) and GitHub Actions on this
   public repository cost nothing.
 - GitHub disables scheduled workflows in a public repository after 60 days with

@@ -6,7 +6,7 @@
  * buildInterpretRequest() turns the message and its context into a prompt and
  * a JSON schema; scripts/apply-choice.mjs sends them with callClaude. Then
  * readInterpretation() validates the answer and returns one of:
- *   { type: 'pick', n, overrides, descriptionBy, readAs }
+ *   { type: 'pick', n, overrides, descriptionBy, readAs }  (readAs: describeReading)
  *   { type: 'more', hint }
  *   { type: 'help' }
  *   { type: 'clarify', question }
@@ -28,10 +28,13 @@ export const INTERPRET_OPTIONS = {
   maxTokens: 16000,
   effort: 'medium',
   fallbacks: 'default',
+  // Martin is waiting in the chat: a reading takes 2–9 seconds, so a call that
+  // hangs is cut at 90 seconds and retried twice, not left for half an hour.
+  timeoutMs: 90_000,
+  maxRetries: 2,
 };
 
 const MAX_QUESTION_LENGTH = 300;
-const MAX_READ_AS_LENGTH = 200;
 
 const nullable = (schema) => ({ anyOf: [schema, { type: 'null' }] });
 const text = { type: 'string' };
@@ -72,9 +75,8 @@ export const INTERPRET_SCHEMA = {
     descriptionBy: { type: 'string', enum: ['martin', 'claude', 'none'] },
     hint: nullable(text),
     question: nullable(text),
-    readAs: text,
   },
-  required: ['action', 'n', 'fields', 'description', 'descriptionBy', 'hint', 'question', 'readAs'],
+  required: ['action', 'n', 'fields', 'description', 'descriptionBy', 'hint', 'question'],
   additionalProperties: false,
 };
 
@@ -102,9 +104,7 @@ Description:
 - Only if he asks you to write or rewrite the description ("make it shorter", "write one about the floor being lava"), write it yourself, based on the proposal or the current description, and set descriptionBy to "claude". Keep the challenge's mechanics. Never add a prop, number or rule that isn't part of the challenge.{{STYLE}}
 - Otherwise description is null and descriptionBy is "none".
 
-If he replied to a proposal, that proposal is the one he means unless he names another. If he replied to an earlier question from the bot, read his message as the answer to it; the question quotes what he wrote before, and a description he wrote there still counts as his words.
-
-readAs: one short line saying how you read the message, in plain words, for example "#2, category → couple, with your description".`;
+If he replied to a proposal, that proposal is the one he means unless he names another. If he replied to an earlier question from the bot, read his message as the answer to it; the question quotes what he wrote before, and a description he wrote there still counts as his words.`;
 
 function describeProposal(p) {
   return [
@@ -155,6 +155,46 @@ export function buildInterpretRequest({ message, replyN = null, replyText = null
 }
 
 const clarify = (question) => ({ type: 'clarify', question });
+
+// How each field reads in the "I read this as" line: his words, not the
+// record's names.
+const FIELD_PHRASES = {
+  title: (v) => `title → ${v}`,
+  emoji: (v) => `emoji → ${v}`,
+  category: (v) => `for → ${{ friend: 'friends', couple: 'couples', both: 'everyone' }[v] ?? v}`,
+  difficulty: (v) => `difficulty → ${v}`,
+  players: (v) => `players → ${v}`,
+  timeEstimate: (v) => `time → ${v}`,
+  exampleUrl: () => 'link → the one you sent',
+};
+
+/**
+ * The "I read this as" line for a checked pick (docs/plans/read-as-line.md,
+ * D19). Built from what will actually be applied, never from the model's own
+ * summary, so it can't claim an edit that didn't happen:
+ *   "#2 The No-Hands Challenge instead of #1 · for → friends · your description, word for word"
+ * It names the card by its current title and lists only what this message
+ * changes. A field set to the value the card already has says "(already)".
+ * With nothing else: "as proposed" for a new pick, "no new changes" for the
+ * current one.
+ */
+export function describeReading({ n, overrides, descriptionBy }, proposals) {
+  const proposal = findProposal(proposals, n);
+  const previous = proposals.pick?.n;
+  const samePick = previous === n;
+  // The card as it stands before this message: the proposal plus any earlier
+  // changes when he is re-picking the current pick.
+  const card = { ...proposal, ...(samePick ? proposals.pick.overrides ?? {} : {}) };
+  const switched = previous && !samePick ? ` instead of #${previous}` : '';
+  const head = `#${n}${card.title ? ` ${card.title}` : ''}${switched}`;
+  const parts = Object.entries(FIELD_PHRASES)
+    .filter(([field]) => overrides[field] !== undefined)
+    .map(([field, phrase]) => `${phrase(overrides[field])}${card[field] === overrides[field] ? ' (already)' : ''}`);
+  if (descriptionBy === 'martin') parts.push('your description, word for word');
+  if (descriptionBy === 'claude') parts.push('a description I wrote');
+  if (!parts.length) parts.push(samePick ? 'no new changes' : 'as proposed');
+  return [head, ...parts].join(' · ');
+}
 
 // Curly and straight quotes count as the same character, one for one, so a
 // model that straightens iOS smart punctuation still finds Martin's text.
@@ -256,9 +296,7 @@ export function readInterpretation(answer, { message, proposals, earlierMessage 
       const problems = validateOverrides(checked);
       if (problems.length) return clarify(`I couldn't use that: ${problems.join('; ')}. Could you send it again?`);
 
-      const readAs = typeof answer.readAs === 'string' && answer.readAs.trim()
-        ? clip(answer.readAs.trim(), MAX_READ_AS_LENGTH)
-        : `#${n}`;
+      const readAs = describeReading({ n, overrides, descriptionBy }, proposals);
       return { type: 'pick', n, overrides, descriptionBy, readAs };
     }
 

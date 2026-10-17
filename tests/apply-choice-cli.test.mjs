@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { appendBatch, createProposals, markPicked } from '../scripts/lib/proposals.mjs';
 import { formatDateLocal, getCurrentMonday, getNextMonday, getWeekId } from '../scripts/lib/dates.mjs';
 
@@ -49,6 +49,8 @@ function run(args, { event, eventName } = {}) {
 beforeEach(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'apply-cli-'));
   fs.cpSync(path.join(ROOT, 'scripts'), path.join(dir, 'scripts'), { recursive: true });
+  // The scripts import the Anthropic SDK; the copy resolves it from the repo's install.
+  fs.symlinkSync(path.join(ROOT, 'node_modules'), path.join(dir, 'node_modules'), 'dir');
   fs.copyFileSync(path.join(ROOT, 'writing-style.md'), path.join(dir, 'writing-style.md'));
   fs.mkdirSync(path.join(dir, 'src', 'data'), { recursive: true });
   fs.writeFileSync(path.join(dir, 'src', 'data', 'challenges.json'), JSON.stringify([
@@ -154,8 +156,10 @@ test('the live week says so in its confirmation', () => {
 
 // Claude answers come from STUB_CLAUDE (a JSON array, used in order); every
 // Telegram and GitHub call is logged to STUB_LOG.
+const SSE_HELPER = pathToFileURL(path.join(ROOT, 'tests', 'helpers', 'sse.mjs')).href;
 const MESSAGE_STUB = `
 import fs from 'node:fs';
+import { sseResponse } from '${SSE_HELPER}';
 const answers = JSON.parse(process.env.STUB_CLAUDE || '[]');
 let next = 0;
 const log = (entry) => fs.appendFileSync(process.env.STUB_LOG, JSON.stringify(entry) + '\\n');
@@ -165,7 +169,7 @@ globalThis.fetch = async (url, init) => {
     log({ to: 'claude', model: body.model, prompt: body.messages[0].content });
     const answer = answers[next++];
     if (!answer) throw new Error('no stubbed Claude answer left');
-    return new Response(JSON.stringify({ stop_reason: 'end_turn', content: [{ type: 'thinking', thinking: '', signature: 's' }, { type: 'text', text: JSON.stringify(answer) }] }));
+    return sseResponse({ stop_reason: 'end_turn', content: [{ type: 'thinking', thinking: '', signature: 's' }, { type: 'text', text: JSON.stringify(answer) }] });
   }
   if (String(url).includes('api.github.com')) {
     log({ to: 'github', url: String(url), body });
@@ -184,7 +188,6 @@ const reading = (overrides) => ({
   descriptionBy: 'none',
   hint: null,
   question: null,
-  readAs: '',
   ...overrides,
 });
 
@@ -231,7 +234,6 @@ test('a message picks with his own description, through Opus, and the confirmati
       fields: { ...reading().fields, category: 'friend' },
       description: 'Two of you draw blind while a third describes a photo.',
       descriptionBy: 'martin',
-      readAs: '#2, for friends, with your description',
     })],
     ['--message-out', path.join(dir, 'confirm.json')]
   );
@@ -246,7 +248,7 @@ test('a message picks with his own description, through Opus, and the confirmati
   ]);
   const { pick } = readJson(`proposals/${upcoming.weekId}.json`);
   assert.deepEqual([pick.n, pick.source, pick.descriptionBy], [2, 'message', 'martin']);
-  assert.match(readJson('confirm.json').text, /I read this as: #2, for friends, with your description/);
+  assert.match(readJson('confirm.json').text, /I read this as: #2 The Bravo Challenge · for → friends · your description, word for word/);
 });
 
 test('a description Claude writes on request gets one style rewrite and is marked as Claude\'s', () => {
@@ -255,7 +257,7 @@ test('a description Claude writes on request gets one style rewrite and is marke
   const clean = 'Sit back to back. One of you describes a photo while the other draws it blind, with no peeking allowed at all.';
   const { status, calls } = runMessage(
     { week_id: upcoming.weekId, message: '2 but write a punchier description' },
-    [reading({ n: 2, description: flagged, descriptionBy: 'claude', readAs: '#2, new description' }), { description: clean }],
+    [reading({ n: 2, description: flagged, descriptionBy: 'claude' }), { description: clean }],
     ['--message-out', path.join(dir, 'confirm.json')]
   );
   assert.equal(status, 0);
@@ -283,7 +285,7 @@ test('an answer to that question can use the description from his first message'
   const question = `🤔 Alpha or Bravo?\n\nYou wrote:\nthe food one, description: Pass a grape around using only your chins.\n? · ${upcoming.weekId}`;
   const { status, output } = runMessage(
     { week_id: upcoming.weekId, message: '2', reply_text: question },
-    [reading({ n: 2, description: 'Pass a grape around using only your chins.', descriptionBy: 'martin', readAs: '#2 with your description' })]
+    [reading({ n: 2, description: 'Pass a grape around using only your chins.', descriptionBy: 'martin' })]
   );
   assert.equal(status, 0);
   assert.match(output, /applied=true/);
@@ -314,7 +316,7 @@ test('help sends the reply guide; a week with no proposals is answered without c
 test('the reading is cached for the run, so applying again calls Claude once', () => {
   writeProposalsFile(upcoming.weekId, upcoming.weekOf);
   const cache = path.join(dir, 'interpretation.json');
-  const first = runMessage({ week_id: upcoming.weekId, message: 'the alpha one' }, [reading({ n: 1, readAs: '#1' })], ['--interpretation-cache', cache]);
+  const first = runMessage({ week_id: upcoming.weekId, message: 'the alpha one' }, [reading({ n: 1 })], ['--interpretation-cache', cache]);
   assert.equal(first.calls.filter((c) => c.to === 'claude').length, 1);
   const again = runMessage({ week_id: upcoming.weekId, message: 'the alpha one' }, [], ['--interpretation-cache', cache]);
   assert.equal(again.status, 0, again.stderr);
@@ -337,7 +339,7 @@ test('a rewrite that breaks more rules than the first draft is not used', () => 
   const worse = 'It is hilarious — epic — draw.';
   const { status, calls } = runMessage(
     { week_id: upcoming.weekId, message: '2, rewrite the description please' },
-    [reading({ n: 2, description: first, descriptionBy: 'claude', readAs: '#2' }), { description: worse }]
+    [reading({ n: 2, description: first, descriptionBy: 'claude' }), { description: worse }]
   );
   assert.equal(status, 0);
   assert.match(calls[1].prompt, /^Martin asked: 2, rewrite the description please/, 'the rewrite sees his request');
@@ -349,7 +351,7 @@ test('a description Claude can only write too long becomes a question', () => {
   const long = 'Sit down and play. '.repeat(120);
   const { status, output, calls } = runMessage(
     { week_id: upcoming.weekId, message: '2, write a very detailed description' },
-    [reading({ n: 2, description: long, descriptionBy: 'claude', readAs: '#2' }), { description: long }]
+    [reading({ n: 2, description: long, descriptionBy: 'claude' }), { description: long }]
   );
   assert.equal(status, 0);
   assert.equal(output, '');
@@ -379,7 +381,7 @@ test('"more" for an archived week is answered without asking GitHub', () => {
 
 test('a hand-run message with an empty week means the coming week', () => {
   writeProposalsFile(upcoming.weekId, upcoming.weekOf);
-  const { status, output } = runMessage({ week_id: '', message: 'the alpha one' }, [reading({ n: 1, readAs: '#1' })]);
+  const { status, output } = runMessage({ week_id: '', message: 'the alpha one' }, [reading({ n: 1 })]);
   assert.equal(status, 0);
   assert.match(output, /applied=true/);
 });

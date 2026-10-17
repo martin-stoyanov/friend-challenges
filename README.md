@@ -6,7 +6,7 @@ Weekly viral friend and couple challenges — try it, film it, tag your friends!
 
 - **Frontend**: React 19, Vite 7, Tailwind CSS v4, shadcn/ui, Framer Motion
 - **Deployment**: Netlify (auto-deploys on push)
-- **Challenge Generation**: AI-powered via Claude (Anthropic API)
+- **Challenge Generation**: Claude Opus 5.5 through the official Anthropic SDK (`@anthropic-ai/sdk`)
 
 ## Local Development
 
@@ -50,7 +50,9 @@ node scripts/generate-challenge.mjs --dry-run
 node scripts/generate-challenge.mjs --category friend
 ```
 
-Requires an `ANTHROPIC_API_KEY` environment variable.
+Requires `npm install` (the scripts call Claude through `@anthropic-ai/sdk`) and an
+`ANTHROPIC_API_KEY` environment variable. A run takes a minute or two and usually costs
+about $0.50; see "Costs and limits" in `AUTOMATION_PLAN.md`.
 
 ## Challenge Copy
 
@@ -72,7 +74,7 @@ npm run lint:copy
 - `scripts/generate-challenge.mjs` — AI challenge generation, direct or as proposals (`--propose`)
 - `scripts/apply-choice.mjs` — applies a pick, or the Sunday fallback, to `challenges.json`
 - `scripts/telegram-setup.mjs`, `scripts/telegram-notify.mjs` — bot setup and notices
-- `scripts/lib/` — shared pieces: dates, Claude calls, Telegram, the reply parser, the free-form reply interpreter, proposals
+- `scripts/lib/` — shared pieces: dates, Claude calls (`claude.mjs`, the only code that talks to the API), Telegram, the reply parser, the free-form reply interpreter, proposals
 - `scripts/eval-interpret.mjs` — live accuracy check of the interpreter on `tests/fixtures/interpret-messages.json`
 - `scripts/copy-style.mjs` — writing-style.md checker (used by the generator and `npm run lint:copy`)
 - `netlify/functions/telegram-webhook.mjs` — receives Telegram taps and replies
