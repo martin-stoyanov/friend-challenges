@@ -63,5 +63,10 @@
       "reasoning": "NapoleonCat's October 2026 TikTok trends report specifically calls out the 'How different our lives are' trend as current, where two people film the same day from their own perspectives and cut the footage together."
     }
   ],
-  "pick": null
+  "pick": {
+    "n": 1,
+    "source": "fallback",
+    "overrides": {},
+    "at": "2026-10-18T15:44:10.144Z"
+  }
 }
