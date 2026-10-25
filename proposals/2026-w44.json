@@ -63,5 +63,10 @@
       "reasoning": "The Ramalama costume reveal is confirmed as one of TikTok's biggest October 2026 trends by multiple sources this week, with costume reveals timed to the drum hit going viral just ahead of Halloween — timing couldn't be better for the week of October 26."
     }
   ],
-  "pick": null
+  "pick": {
+    "n": 1,
+    "source": "fallback",
+    "overrides": {},
+    "at": "2026-10-25T15:57:04.639Z"
+  }
 }
