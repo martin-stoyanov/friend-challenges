@@ -1,0 +1,67 @@
+{
+  "weekId": "2026-w45",
+  "weekOf": "2026-11-02",
+  "proposals": [
+    {
+      "n": 1,
+      "batch": 1,
+      "createdAt": "2026-10-29T17:43:31.702Z",
+      "title": "The Pumpkin Head Illusion Challenge",
+      "description": "One person holds a pumpkin close to the phone lens while a friend or partner stands several feet behind it. Before you start recording, adjust until the pumpkin lines up exactly with your friend's head. Their real face should disappear completely behind it. Once you've got the frame right, keep the camera and pumpkin steady while the person in the back dances, waves their arms, or spins. If they lean too far sideways, their actual head pops into view and the whole thing falls apart, so they'll need to keep most of their movement from the shoulders down. Check the edges of the pumpkin before you hit record.",
+      "category": "both",
+      "difficulty": "easy",
+      "emoji": "🎃",
+      "trendSource": "TikTok",
+      "players": "2+",
+      "timeEstimate": "10-15 min",
+      "exampleUrl": "https://www.tiktok.com/search?q=pumpkin%20head%20illusion%20challenge",
+      "reasoning": "The Pumpkin Head Illusion is one of TikTok's top trending formats for October 2026 per New Engen's weekly trend report, with multiple creators posting under #PumpkinHead and #Halloween2026 as recently as mid-October. It's perfectly timed for the week of November 2nd — still spooky season — and requires zero editing."
+    },
+    {
+      "n": 2,
+      "batch": 1,
+      "createdAt": "2026-10-29T17:43:31.702Z",
+      "title": "The Cracking Every Time We Agree Challenge",
+      "description": "Queue up a long list of things to agree or disagree on: restaurants, foods, movies, whatever you'd actually argue about. Take turns reading them out loud. Every time you both land on the same answer, one or both of you has to crack: fully break, laugh, lose composure, whatever comes naturally. The challenge is to stay straight-faced through the disagreements and only lose it on the matches, which sounds easy until you're three items in and both nodding at the same obscure fast food chain. Film it in one continuous take so the reactions are all there in sequence. According to a breakdown published October 22, 2026, this format has crossed 62 million views across just five videos.",
+      "category": "couple",
+      "difficulty": "easy",
+      "emoji": "😂",
+      "trendSource": "TikTok",
+      "players": "2",
+      "timeEstimate": "10-15 min",
+      "exampleUrl": "https://www.tiktok.com/search?q=cracking%20every%20time%20we%20agree%20challenge",
+      "reasoning": "Per trendsbymasterhooks.com's October 22, 2026 analysis, this challenge leads all friend and couple formats with 62M+ views and has re-surged with a slightly updated concept, making it one of the clearest trending signals right now."
+    },
+    {
+      "n": 3,
+      "batch": 1,
+      "createdAt": "2026-10-29T17:43:31.702Z",
+      "title": "The Pick Me Up Like This Challenge",
+      "description": "One partner scrolls through a video or photo of an impressive couple lift and shows it to the other person. Something you've seen on your feed works fine. Then you try to recreate it from a standing start, no warm-up, no practice run. The person doing the lifting has to match the pose as closely as they can while the other holds the position long enough to get it on camera. Most attempts go sideways well before the final pose, and that's most of the video. Film the attempt from a wide angle so both people are fully in frame.",
+      "category": "couple",
+      "difficulty": "medium",
+      "emoji": "💪",
+      "trendSource": "TikTok",
+      "players": "2",
+      "timeEstimate": "10-15 min",
+      "exampleUrl": "https://www.tiktok.com/search?q=pick%20me%20up%20like%20this%20challenge",
+      "reasoning": "Tracked at 24.28M+ views in the October 22, 2026 trendsbymasterhooks.com breakdown of active TikTok couple challenge formats, this one pairs well with the other picks because its mechanic — spontaneous physical recreation — is completely different from any word or reaction format."
+    },
+    {
+      "n": 4,
+      "batch": 1,
+      "createdAt": "2026-10-29T17:43:31.702Z",
+      "title": "The Stick-Man Battleship Challenge",
+      "description": "Each player grabs a piece of paper and a nail polish (or a marker if you'd rather not risk the table) and draws a grid. You each secretly place a few stick-figure characters on your grid, then take turns calling out coordinates to try to hit them. When you get a hit, the other person draws the hit on their stick figure: arm, leg, head. The figure is only fully out when every part is marked. It's the classic game, just scruffier and more personal, and arguing about whether a coordinate counts as a hit on the torso or a near-miss is apparently most of the experience. Keep both grids hidden until the end.",
+      "category": "both",
+      "difficulty": "medium",
+      "emoji": "🖊️",
+      "trendSource": "TikTok",
+      "players": "2",
+      "timeEstimate": "15-20 min",
+      "exampleUrl": "https://www.tiktok.com/search?q=stick%20man%20battleship%20challenge",
+      "reasoning": "The Stick-Man Battleship Challenge was cited in the October 22, 2026 trendsbymasterhooks.com trend breakdown with 6.62M views across four videos, and its paper-and-polish mechanic is distinct from every other challenge on this list, offering a genuinely different activity type for the week."
+    }
+  ],
+  "pick": null
+}
