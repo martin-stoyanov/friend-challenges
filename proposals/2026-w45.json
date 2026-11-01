@@ -63,5 +63,10 @@
       "reasoning": "The Stick-Man Battleship Challenge was cited in the October 22, 2026 trendsbymasterhooks.com trend breakdown with 6.62M views across four videos, and its paper-and-polish mechanic is distinct from every other challenge on this list, offering a genuinely different activity type for the week."
     }
   ],
-  "pick": null
+  "pick": {
+    "n": 1,
+    "source": "fallback",
+    "overrides": {},
+    "at": "2026-11-01T17:51:01.179Z"
+  }
 }
