@@ -1,0 +1,67 @@
+{
+  "weekId": "2026-w46",
+  "weekOf": "2026-11-09",
+  "proposals": [
+    {
+      "n": 1,
+      "batch": 1,
+      "createdAt": "2026-11-05T19:10:50.478Z",
+      "title": "The Don't Say the Same Word Challenge",
+      "description": "Sit facing each other with a category list between you — color, sport, number, season, whatever you've got. On three, you both shout out your answer at the same time, no pausing to think. If you say the same word, you both lose that round; keep going until you've cleared every category without matching. It sounds like it should be easy. It is not, and it gets stranger the more you try to outsmart each other.",
+      "category": "both",
+      "difficulty": "easy",
+      "emoji": "🗣️",
+      "trendSource": "TikTok",
+      "players": "2+",
+      "timeEstimate": "10-15 min",
+      "exampleUrl": "https://www.tiktok.com/search?q=don%27t%20say%20the%20same%20word%20challenge%20couple",
+      "reasoning": "The #coupleschallenge 'Don't Say the Same Word' format has been racking up views on TikTok through October 2026 with creators like AnthonyReactss posting rounds that hit 16.9K+ likes, and it works equally well for friends or partners with zero setup required."
+    },
+    {
+      "n": 2,
+      "batch": 1,
+      "createdAt": "2026-11-05T19:10:50.478Z",
+      "title": "The What Did We Say Challenge",
+      "description": "Pick a prompt. Something like \"what do we say when one of us is running late?\" works well. Both of you write your answer down before anyone speaks, then flip your answers at the same time. If they match, you're in sync. If they don't, whoever's answer is weirder has to explain themselves on camera. Run through as many prompts as you want, but the ones about your shared habits tend to go sideways fastest.",
+      "category": "both",
+      "difficulty": "easy",
+      "emoji": "📝",
+      "trendSource": "TikTok",
+      "players": "2",
+      "timeEstimate": "10-15 min",
+      "exampleUrl": "https://www.tiktok.com/search?q=what%20did%20we%20say%20challenge",
+      "reasoning": "The #whatdidwesaychallenge has been active on TikTok through mid-to-late October 2026, with couples and best friends both running versions, making it a natural fit for either audience with no props beyond something to write on."
+    },
+    {
+      "n": 3,
+      "batch": 1,
+      "createdAt": "2026-11-05T19:10:50.478Z",
+      "title": "The Upside Down Lift Challenge",
+      "description": "One person stands behind the other and wraps their arms around their waist. The person in front crosses their arms over their chest. Now the person behind tries to lift them off the ground, flip them upside down, and hold them there long enough for a photo or a reaction shot, without dropping anyone. Clear some floor space first. This rarely ends at a standing height. Film it wide so both faces are in frame the whole time.",
+      "category": "couple",
+      "difficulty": "medium",
+      "emoji": "🙃",
+      "trendSource": "TikTok",
+      "players": "2",
+      "timeEstimate": "10-15 min",
+      "exampleUrl": "https://www.tiktok.com/search?q=upside%20down%20lift%20challenge%20couple",
+      "reasoning": "The upside-down lift was flagged as one of three TikTok challenge formats accumulating 93M+ views on the platform as of October 22, 2026, specifically noted as a couple/friend physical challenge with minimal setup and high reaction value."
+    },
+    {
+      "n": 4,
+      "batch": 1,
+      "createdAt": "2026-11-05T19:10:50.478Z",
+      "title": "The Dame Hombro Shoulder Dance Challenge",
+      "description": "Pick a partner and stand side by side facing the camera. Match the shoulder-pop sequence from the trending \"Dame Hombro\" audio as closely as you can: shoulders up, roll, drop, repeat. Stay in sync with each other and the beat. Set the phone up in front of you, then go. The sync almost always breaks down in the second half, which is the part people actually watch.",
+      "category": "both",
+      "difficulty": "medium",
+      "emoji": "💃",
+      "trendSource": "TikTok",
+      "players": "2+",
+      "timeEstimate": "15-20 min",
+      "exampleUrl": "https://www.tiktok.com/search?q=dame%20hombro%20challenge",
+      "reasoning": "The 'Dame Hombro' dance challenge is specifically named as one of the top spreading TikTok trends in November 2026 by multiple trend-tracking sources, with the shoulder-dance format pulling in group and couple participation across the platform right now."
+    }
+  ],
+  "pick": null
+}
