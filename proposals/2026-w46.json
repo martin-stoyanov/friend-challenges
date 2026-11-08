@@ -63,5 +63,10 @@
       "reasoning": "The 'Dame Hombro' dance challenge is specifically named as one of the top spreading TikTok trends in November 2026 by multiple trend-tracking sources, with the shoulder-dance format pulling in group and couple participation across the platform right now."
     }
   ],
-  "pick": null
+  "pick": {
+    "n": 1,
+    "source": "fallback",
+    "overrides": {},
+    "at": "2026-11-08T17:51:13.513Z"
+  }
 }
