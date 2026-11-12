@@ -1,0 +1,67 @@
+{
+  "weekId": "2026-w47",
+  "weekOf": "2026-11-16",
+  "proposals": [
+    {
+      "n": 1,
+      "batch": 1,
+      "createdAt": "2026-11-12T19:16:32.739Z",
+      "title": "The Target Couple Challenge",
+      "description": "Split up the moment you walk through the door, one of you at each end of the store. Each person picks one item per category for their partner: favorite snack, favorite drink, something in their go-to color, something they need, and a gag gift. No peeking, no texting. Meet back at the entrance, pay separately, then go home and reveal everything at the same time on camera. The gap between what you thought they'd love and what they actually love is usually the whole video.",
+      "category": "couple",
+      "difficulty": "medium",
+      "emoji": "🎯",
+      "trendSource": "TikTok",
+      "players": "2",
+      "timeEstimate": "45-60 min",
+      "exampleUrl": "https://www.tiktok.com/search?q=target%20couples%20challenge",
+      "reasoning": "The Target Challenge has sustained massive TikTok engagement throughout 2026 with fresh couple videos still surfacing as recently as November 2026, and the holiday season is pushing a new wave of participants shopping for each other."
+    },
+    {
+      "n": 2,
+      "batch": 1,
+      "createdAt": "2026-11-12T19:16:32.739Z",
+      "title": "The Shoe Game Challenge",
+      "description": "Sit back to back so neither of you can see the other's face. Take off both your shoes. Each of you holds one of your own and one of your partner's, so you have two shoes, one per hand, and they represent each of you. Someone reads a question out loud: 'Who said I love you first?' 'Who's the worst cook?' 'Who cries at commercials?' Raise whichever shoe answers the question. You can't see each other, but the camera can, and the two answers landing in different directions is what everyone's watching for.",
+      "category": "couple",
+      "difficulty": "easy",
+      "emoji": "👟",
+      "trendSource": "TikTok",
+      "players": "2",
+      "timeEstimate": "15-20 min",
+      "exampleUrl": "https://www.tiktok.com/search?q=shoe%20game%20couple%20challenge",
+      "reasoning": "The Shoe Game is confirmed trending on TikTok in November 2026 per LoveYug's challenge roundup, and its split-screen reveal format performs especially well as a filmed couples video."
+    },
+    {
+      "n": 3,
+      "batch": 1,
+      "createdAt": "2026-11-12T19:16:32.739Z",
+      "title": "The Trust My Partner Challenge",
+      "description": "One of you looks at the camera and says 'I trust my partner.' Then you hand them full control of whatever comes next, whether that's picking your outfit, your meal, your haircut appointment, or something you have to do in public. Your partner plans the whole thing in advance and doesn't tell you what it is until after you've declared your trust on camera. You film your reaction when it's revealed. The 'I trust you' said right before the reveal is the entire setup.",
+      "category": "couple",
+      "difficulty": "medium",
+      "emoji": "🤝",
+      "trendSource": "TikTok",
+      "players": "2",
+      "timeEstimate": "20-30 min",
+      "exampleUrl": "https://www.tiktok.com/search?q=trust%20my%20partner%20challenge",
+      "reasoning": "The Trust My Partner Challenge went viral on TikTok in late September 2026 with the top video clearing 12.8M views, and couples are still actively posting new versions through November 2026."
+    },
+    {
+      "n": 4,
+      "batch": 1,
+      "createdAt": "2026-11-12T19:16:32.739Z",
+      "title": "The Taylor Swift Back-to-Back Challenge",
+      "description": "Two people stand back to back and bump into each other, then break into a coordinated side-by-side dance together. The choreography is set to 'I Knew It, I Knew You' by Taylor Swift. The bump is the cue to start, so you need to nail the timing on that first contact or the whole thing falls apart. Run it a few times to sync up, then film the take you're happiest with. Works with two people or a bigger group if you line everyone up.",
+      "category": "both",
+      "difficulty": "medium",
+      "emoji": "🎶",
+      "trendSource": "Instagram Reels",
+      "players": "2+",
+      "timeEstimate": "20-30 min",
+      "exampleUrl": "https://www.tiktok.com/search?q=I%20Knew%20It%20I%20Knew%20You%20Taylor%20Swift%20dance%20challenge",
+      "reasoning": "This back-to-back bump dance to Taylor Swift's 'I Knew It, I Knew You' is confirmed trending on Instagram Reels in early November 2026, with its two-person choreography format spreading fast across friend and couple accounts."
+    }
+  ],
+  "pick": null
+}
