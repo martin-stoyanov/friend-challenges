@@ -63,5 +63,10 @@
       "reasoning": "This back-to-back bump dance to Taylor Swift's 'I Knew It, I Knew You' is confirmed trending on Instagram Reels in early November 2026, with its two-person choreography format spreading fast across friend and couple accounts."
     }
   ],
-  "pick": null
+  "pick": {
+    "n": 1,
+    "source": "fallback",
+    "overrides": {},
+    "at": "2026-11-15T18:43:28.404Z"
+  }
 }
