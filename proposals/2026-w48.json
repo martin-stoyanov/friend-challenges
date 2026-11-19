@@ -1,0 +1,67 @@
+{
+  "weekId": "2026-w48",
+  "weekOf": "2026-11-23",
+  "proposals": [
+    {
+      "n": 1,
+      "batch": 1,
+      "createdAt": "2026-11-19T19:41:56.601Z",
+      "title": "The Bicep Heart Challenge",
+      "description": "Flex one arm with your fist raised near your head, then press the opposite hand against the inside of that bicep, thumb pointing down and fingers curled, until your arm and hand together close into a heart shape facing the camera. That's the whole move. Film it in one take, post it, and tag whoever you're sending the heart to. They owe you one back. The shape works whether or not you have a bicep worth talking about, which is probably why it hit 71,000 videos in its first week.",
+      "category": "both",
+      "difficulty": "easy",
+      "emoji": "💪",
+      "trendSource": "TikTok and Instagram Reels",
+      "players": "1+",
+      "timeEstimate": "5-10 min",
+      "exampleUrl": "https://www.tiktok.com/search?q=bicep%20heart%20challenge",
+      "reasoning": "The #bicepheart hashtag launched on TikTok on October 26, 2026 and hit 71,000 videos within a week, still spreading into November. It's a rare challenge that works solo, with a partner, or in a group, and needs zero setup or props."
+    },
+    {
+      "n": 2,
+      "batch": 1,
+      "createdAt": "2026-11-19T19:41:56.601Z",
+      "title": "The You're Under Arrest Challenge",
+      "description": "Learn the short 'arrest' hook from ILLIT's chorus. It's a quick arm-grab sequence, so watch a few reference videos first to get the motion down. Once you've got it, stand face to face with your partner or friend and pass the move between you in one continuous shot. The person receiving the 'arrest' has to react on cue and hand it off to the next person. K-pop groups keep joining in. The bar for who's doing this right now is genuinely high, but so is the audience.",
+      "category": "both",
+      "difficulty": "medium",
+      "emoji": "🚔",
+      "trendSource": "TikTok",
+      "players": "2+",
+      "timeEstimate": "15-20 min",
+      "exampleUrl": "https://www.tiktok.com/search?q=you%27re%20under%20arrest%20challenge%20ILLIT",
+      "reasoning": "Listed as the number-one trending TikTok challenge for the week of November 17–25, 2026, with the hashtag #You_re_Under_Arrest rising fast and major K-pop acts joining, keeping it in Western feeds throughout November."
+    },
+    {
+      "n": 3,
+      "batch": 1,
+      "createdAt": "2026-11-19T19:41:56.601Z",
+      "title": "The Switch Phones Challenge",
+      "description": "Hand your unlocked phone to your partner and take theirs. Sixty seconds. You each get to look at whatever you want: search history, DMs, the notes app, photos. The 2026 version swaps both phones at the same time and films each person's reactions side by side in split screen, so the footage runs together. Set a timer, hit record on a third device or a tripod, and go. Nobody has to show what they found, but the face you make will do most of the talking anyway.",
+      "category": "couple",
+      "difficulty": "easy",
+      "emoji": "📱",
+      "trendSource": "TikTok",
+      "players": "2",
+      "timeEstimate": "10-15 min",
+      "exampleUrl": "https://www.tiktok.com/search?q=switch%20phones%20challenge%20couple",
+      "reasoning": "The simultaneous split-screen version of this challenge resurged in late 2026 as a couple content format, driven by its built-in suspense and the fact that it requires nothing but the phones both people already have in their pockets."
+    },
+    {
+      "n": 4,
+      "batch": 1,
+      "createdAt": "2026-11-19T19:41:56.601Z",
+      "title": "The Find the Beat Challenge",
+      "description": "One person in the group already knows a short dance sequence set to a slowed Jersey Club track. They don't teach it ahead of time. Everyone else watches once and then has to find the beat on the spot when the music starts, mirroring the moves as best they can in real time. Film the whole room from the front so every attempt is in frame at once. At the end, the person who knows the choreo goes again at full speed so you can cut it against everyone's first tries.",
+      "category": "both",
+      "difficulty": "medium",
+      "emoji": "🎵",
+      "trendSource": "TikTok",
+      "players": "3+",
+      "timeEstimate": "15-20 min",
+      "exampleUrl": "https://www.tiktok.com/search?q=find%20the%20beat%20challenge%20jersey%20club",
+      "reasoning": "Trending on TikTok in November 2026 using a slowed Jersey Club track, this challenge works for friend groups because the gap between the person who knows the moves and everyone else is what makes the footage worth watching."
+    }
+  ],
+  "pick": null
+}
